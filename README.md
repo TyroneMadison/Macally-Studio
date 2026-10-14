@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/images/keyboard.jpg" alt="Macally Backlit Mac Keyboard in space gray" width="860">
+<img src="docs/images/keyboard.jpg" alt="3D render of the Macally backlit keyboard in space gray" width="860">
 
 # Macally Studio
 
