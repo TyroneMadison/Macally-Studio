@@ -138,6 +138,11 @@ fn input(d: &KeyDef, up: bool) -> Option<INPUT> {
     })
 }
 
+/// Windows needs no permission to hook the keyboard.
+pub fn permissions_granted() -> bool {
+    true
+}
+
 /// True when a keyboard whose device path carries the Macally VID/PID is connected.
 pub fn device_found() -> bool {
     let size = std::mem::size_of::<RAWINPUTDEVICELIST>() as u32;

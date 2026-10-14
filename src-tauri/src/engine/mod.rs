@@ -3,11 +3,12 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
-use std::sync::mpsc::Sender;
-use std::sync::{Mutex, RwLock};
+use std::sync::mpsc::{self, Sender};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
+use tauri::{AppHandle, Emitter};
 
 use crate::actions::Action;
 use crate::commands::EngineLike;
@@ -18,6 +19,11 @@ use crate::profiles::{Modifier, Profile};
 pub mod macos;
 #[cfg(target_os = "windows")]
 pub mod windows;
+
+#[cfg(target_os = "macos")]
+use self::macos as os;
+#[cfg(target_os = "windows")]
+use self::windows as os;
 
 #[cfg(test)]
 mod tests;
@@ -322,4 +328,55 @@ impl EngineLike for Engine {
     fn is_paused(&self) -> bool {
         Engine::is_paused(self)
     }
+}
+
+/// Injects through the real OS API.
+struct OsPlatform;
+
+impl Platform for OsPlatform {
+    fn send_combo(&self, keys: &[String], down: bool) {
+        os::send_combo(keys, down);
+    }
+    fn can_send(&self, key: &str) -> bool {
+        os::can_send(key)
+    }
+}
+
+/// Creates the engine, its worker thread (UI events + actions) and the platform hook.
+pub fn start(app: AppHandle) -> Arc<Engine> {
+    let (tx, rx) = mpsc::channel();
+    let engine = Arc::new(Engine::new(Box::new(OsPlatform), tx));
+    std::thread::Builder::new()
+        .name("engine-worker".into())
+        .spawn(move || {
+            for msg in rx {
+                match msg {
+                    EngineMsg::Key(ev) => {
+                        let _ = app.emit("key-event", ev);
+                    }
+                    EngineMsg::Run(action) => {
+                        if let Err(e) = crate::actions::run(&action, &app) {
+                            eprintln!("action failed: {e:#}");
+                        }
+                    }
+                }
+            }
+        })
+        .expect("spawn engine worker");
+    os::install(engine.clone());
+    engine
+}
+
+/// macOS: Accessibility and Input Monitoring are both on. Always true on Windows.
+pub fn permissions_ok() -> bool {
+    os::permissions_granted()
+}
+
+pub fn hook_running() -> bool {
+    HOOK_RUNNING.load(Ordering::SeqCst) && permissions_ok()
+}
+
+/// The Macally (USB VID 0x2222, PID 0x0114) is plugged in.
+pub fn device_found() -> bool {
+    os::device_found()
 }

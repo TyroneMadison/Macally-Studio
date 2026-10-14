@@ -1,5 +1,6 @@
 pub mod actions;
 pub mod commands;
+pub mod control;
 pub mod engine;
 pub mod keymap;
 pub mod profiles;

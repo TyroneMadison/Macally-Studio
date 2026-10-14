@@ -25,6 +25,101 @@ pub enum Action {
     PassThrough,
 }
 
+/// Runs every action except KeyCombo and PassThrough (the engine injects those itself).
+/// Called on the engine's worker thread, never inside the keyboard hook.
+pub fn run(action: &Action, app: &tauri::AppHandle) -> anyhow::Result<()> {
+    use tauri_plugin_opener::OpenerExt;
+    match action {
+        Action::KeyCombo { .. } | Action::PassThrough => Ok(()),
+        Action::LaunchApp { app: target } => launch(target),
+        Action::SteamGame { appid, .. } => Ok(app.opener().open_url(format!("steam://rungameid/{appid}"), None::<&str>)?),
+        Action::Open { target } if has_scheme(target) => Ok(app.opener().open_url(target.as_str(), None::<&str>)?),
+        Action::Open { target } => Ok(app.opener().open_path(target.as_str(), None::<&str>)?),
+        Action::Command { program, args, hidden } => spawn(program, args, *hidden),
+        Action::SwitchProfile { profile } => crate::control::activate(app, profile),
+        Action::PauseToggle => crate::control::toggle_pause(app),
+    }
+}
+
+/// "https://…", "steam://…", "mailto:…", "ms-settings:…" are URLs; "C:\…", "/Users/…" and
+/// "notes.txt" are paths. A one-letter scheme is a Windows drive letter.
+pub fn has_scheme(target: &str) -> bool {
+    match target.split_once(':') {
+        Some((scheme, _)) => {
+            scheme.len() > 1
+                && scheme.starts_with(|c: char| c.is_ascii_alphabetic())
+                && scheme.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
+        }
+        None => false,
+    }
+}
+
+/// Starts `program args…` without waiting; a background thread reaps it.
+fn spawn(program: &str, args: &[String], hidden: bool) -> anyhow::Result<()> {
+    let mut cmd = std::process::Command::new(program);
+    cmd.args(args);
+    #[cfg(target_os = "windows")]
+    if hidden {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(not(target_os = "windows"))]
+    let _ = hidden;
+    let mut child = cmd.spawn().map_err(|e| anyhow::anyhow!("start {program}: {e}"))?;
+    std::thread::spawn(move || child.wait());
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn launch(target: &AppRef) -> anyhow::Result<()> {
+    use windows::Win32::UI::Shell::ShellExecuteW;
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    use windows::core::{HSTRING, PCWSTR, w};
+
+    let (file, params) = match target {
+        AppRef::Aumid { id } => (format!("shell:AppsFolder\\{id}"), String::new()),
+        AppRef::Path { path, args } => (path.clone(), args.clone()),
+        AppRef::Bundle { id } => anyhow::bail!("{id} is a macOS app"),
+    };
+    let file_w = HSTRING::from(file.as_str());
+    let params_w = HSTRING::from(params.as_str());
+    let params_ptr = if params.is_empty() { PCWSTR::null() } else { PCWSTR(params_w.as_ptr()) };
+    let r = unsafe { ShellExecuteW(None, w!("open"), &file_w, params_ptr, PCWSTR::null(), SW_SHOWNORMAL) };
+    // ShellExecuteW reports success as a value greater than 32
+    anyhow::ensure!(r.0 as isize > 32, "could not launch {file} (ShellExecute error {})", r.0 as isize);
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn launch(target: &AppRef) -> anyhow::Result<()> {
+    let mut cmd = std::process::Command::new("/usr/bin/open");
+    match target {
+        AppRef::Bundle { id } => cmd.args(["-b", id]),
+        AppRef::Path { path, args } if args.trim().is_empty() => cmd.arg(path),
+        AppRef::Path { path, args } => cmd.arg(path).arg("--args").args(args.split_whitespace()),
+        AppRef::Aumid { id } => anyhow::bail!("{id} is a Windows app"),
+    };
+    let status = cmd.status()?;
+    anyhow::ensure!(status.success(), "open exited with {status}");
+    Ok(())
+}
+
+#[cfg(test)]
+mod run_tests {
+    use super::has_scheme;
+
+    #[test]
+    fn urls_and_paths_are_told_apart() {
+        for url in ["https://github.com", "steam://rungameid/620", "mailto:me@example.com", "file:///C:/x.txt", "ms-settings:display"] {
+            assert!(has_scheme(url), "{url} should be a URL");
+        }
+        for path in [r"C:\Users\me\notes.txt", "D:/games", "/Users/me/Documents", "notes.txt", r"\\server\share", ""] {
+            assert!(!has_scheme(path), "{path} should be a path");
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
