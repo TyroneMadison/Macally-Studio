@@ -320,6 +320,16 @@ impl Engine {
         true
     }
 
+    /// What the held remaps stand for: (modifier keys the engine took over, modifiers its held
+    /// chords press). The macOS tap fixes event flags with it; there they follow the physical keys.
+    pub fn remapped_mods(&self) -> (ModMask, ModMask) {
+        let live = self.live.lock().unwrap();
+        live.held.iter().fold((0, 0), |(taken, pressed), (code, (action, _))| {
+            let chord = if let Action::KeyCombo { keys } = action { combo_mask(keys) } else { 0 };
+            (taken | mod_bit(code), pressed | chord)
+        })
+    }
+
     fn emit(&self, code: &str, mods: ModMask, down: bool, raw: &str) {
         let ev = KeyEvent { code: code.to_string(), mods: mod_names(mods), down, raw: raw.to_string() };
         let _ = self.tx.send(EngineMsg::Key(ev));

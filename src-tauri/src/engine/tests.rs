@@ -130,6 +130,16 @@ fn held_with_modifiers_the_chord_does_not_press_are_lifted() {
 }
 
 #[test]
+fn remapped_mods_reports_taken_modifiers_and_chord_modifiers() {
+    let (e, _fake, _rx) = engine(&profile(&[("MetaLeft", &[], combo(&["ControlLeft"]))]));
+    assert_eq!(e.remapped_mods(), (0, 0));
+    assert!(e.handle_key("MetaLeft", 0, true, ""));
+    assert_eq!(e.remapped_mods(), (META, CTRL));
+    assert!(e.handle_key("MetaLeft", CTRL, false, ""));
+    assert_eq!(e.remapped_mods(), (0, 0));
+}
+
+#[test]
 fn paused_passes_everything_except_pause_toggle() {
     let (e, fake, rx) = engine(&profile(&[("F3", &[], combo(&["KeyA"])), ("F15", &[], Action::PauseToggle)]));
     e.set_paused(true);

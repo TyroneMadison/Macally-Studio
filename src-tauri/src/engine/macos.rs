@@ -100,7 +100,18 @@ unsafe extern "C-unwind" fn tap_cb(
     let (Some(engine), Some((code, down, raw))) = (ENGINE.get(), decode(ty, ev)) else {
         return event.as_ptr();
     };
-    let mods = mods_from_flags(CGEvent::flags(Some(ev)));
+    // the HID system sets flags from the physical modifiers, before the tap: give each event the
+    // ones the remaps stand for, so with Cmd remapped to Ctrl, Cmd+C reaches the app as Ctrl+C
+    let mut flags = CGEvent::flags(Some(ev));
+    let (taken, pressed) = engine.remapped_mods();
+    if taken | pressed != 0 {
+        flags.remove(flags_of(taken));
+        flags |= flags_of(pressed);
+        if ty.0 != NX_SYSDEFINED {
+            CGEvent::set_flags(Some(ev), flags);
+        }
+    }
+    let mods = mods_from_flags(flags);
     if engine.handle_key(code, mods, down, &raw) { ptr::null_mut() } else { event.as_ptr() }
 }
 
@@ -147,6 +158,14 @@ fn mods_from_flags(f: CGEventFlags) -> ModMask {
         m |= META;
     }
     m
+}
+
+fn flags_of(m: ModMask) -> CGEventFlags {
+    use CGEventFlags as F;
+    [(CTRL, F::MaskControl), (ALT, F::MaskAlternate), (SHIFT, F::MaskShift), (META, F::MaskCommand)]
+        .into_iter()
+        .filter(|(bit, _)| m & bit != 0)
+        .fold(CGEventFlags::empty(), |f, (_, flag)| f | flag)
 }
 
 fn flag_of(code: &str) -> CGEventFlags {
@@ -258,6 +277,8 @@ mod tests {
         assert_eq!(mods_from_flags(CGEventFlags::MaskSecondaryFn), 0);
         assert_eq!(flag_of("AltRight"), CGEventFlags::MaskAlternate);
         assert_eq!(flag_of("KeyA"), CGEventFlags::empty());
+        assert_eq!(flags_of(CTRL | META), CGEventFlags::MaskControl | CGEventFlags::MaskCommand);
+        assert_eq!(mods_from_flags(flags_of(ALT | SHIFT)), ALT | SHIFT);
         assert!(can_send("BrightnessUp") && can_send("Cmd"));
         assert!(!can_send("PrintScreen"));
     }
