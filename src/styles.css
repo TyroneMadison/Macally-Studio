@@ -252,3 +252,10 @@ a:hover { color: #7faaff; }
 .check { display: flex; align-items: center; gap: 10px; color: #c9c9cf; cursor: pointer; }
 .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--primary); }
 .about { margin: 0; color: #c9c9cf; font-size: 13px; line-height: 1.5; }
+
+/* macOS permissions screen */
+.gate { height: 100%; display: grid; place-items: center; padding: 24px; overflow: auto; background: var(--bg); }
+.gate-card { width: min(560px, 100%); display: flex; flex-direction: column; gap: 14px; padding: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
+.gate-card h1 { margin: 4px 0 0; }
+.gate-card p { line-height: 1.5; }
+.gate-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 12px; background: var(--raised); border: 1px solid var(--border); }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PermissionGate from "./components/PermissionGate";
 import Rail, { type View } from "./components/Rail";
 import { useAppState } from "./lib/state";
 import Keyboard from "./views/Keyboard";
@@ -11,13 +12,15 @@ export default function App() {
   const paused = store.status?.paused ?? false;
 
   return (
-    <div className="app">
-      <Rail view={view} onNav={setView} paused={paused} onTogglePause={() => void store.setPaused(!paused)} />
-      <main className="view">
-        {view === "keyboard" && <Keyboard store={store} />}
-        {view === "profiles" && <Profiles store={store} onNav={setView} />}
-        {view === "settings" && <Settings store={store} />}
-      </main>
-    </div>
+    <PermissionGate store={store}>
+      <div className="app">
+        <Rail view={view} onNav={setView} paused={paused} onTogglePause={() => void store.setPaused(!paused)} />
+        <main className="view">
+          {view === "keyboard" && <Keyboard store={store} />}
+          {view === "profiles" && <Profiles store={store} onNav={setView} />}
+          {view === "settings" && <Settings store={store} />}
+        </main>
+      </div>
+    </PermissionGate>
   );
 }

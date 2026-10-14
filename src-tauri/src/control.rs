@@ -38,6 +38,80 @@ pub fn step(app: &AppHandle, step: i32) -> anyhow::Result<()> {
     }
 }
 
+/// After startup and after any profile or settings change: re-register hotkeys,
+/// rebuild the tray, and apply "start at login" / "run as administrator".
+pub fn resync(app: &AppHandle) {
+    let Some(state) = app.try_state::<AppState>() else { return };
+    let settings = state.settings.lock().unwrap().clone();
+    let profiles = state.profiles.lock().unwrap().clone();
+    if let Err(e) = crate::hotkeys::register_all(app, &settings, &profiles) {
+        eprintln!("hotkeys: {e:#}");
+    }
+    crate::tray::refresh(app);
+    sync_autostart(app, &settings);
+}
+
+fn sync_autostart(app: &AppHandle, s: &crate::profiles::Settings) {
+    use tauri_plugin_autostart::ManagerExt;
+    if cfg!(debug_assertions) {
+        return; // `tauri dev` must not register the dev binary as a login item
+    }
+    // elevated starts at login come from a scheduled task instead of the Run key / LaunchAgent
+    let admin = cfg!(target_os = "windows") && s.run_as_admin;
+    let want = s.start_at_login && !admin;
+    let launcher = app.autolaunch();
+    if launcher.is_enabled().unwrap_or(!want) != want
+        && let Err(e) = if want { launcher.enable() } else { launcher.disable() }
+    {
+        eprintln!("start at login: {e}");
+    }
+    #[cfg(target_os = "windows")]
+    elevation::sync(s.start_at_login && admin, admin);
+}
+
+#[cfg(target_os = "windows")]
+mod elevation {
+    use std::os::windows::process::CommandExt;
+    use std::process::Command;
+
+    use windows::Win32::UI::Shell::{IsUserAnAdmin, ShellExecuteW};
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    use windows::core::{HSTRING, PCWSTR, w};
+
+    const TASK: &str = "Macally Studio";
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    /// `logon_task`: keep an ONLOGON task at highest privileges. `admin`: this process must be elevated.
+    pub fn sync(logon_task: bool, admin: bool) {
+        let elevated = unsafe { IsUserAnAdmin() }.as_bool();
+        if admin && !elevated {
+            relaunch_elevated();
+        }
+        if !elevated {
+            return; // creating or deleting a highest-privilege task needs elevation
+        }
+        let Ok(exe) = std::env::current_exe() else { return };
+        let action = format!("\"{}\" --minimized", exe.display());
+        let args: Vec<&str> = if logon_task {
+            vec!["/Create", "/F", "/SC", "ONLOGON", "/RL", "HIGHEST", "/TN", TASK, "/TR", &action]
+        } else {
+            vec!["/Delete", "/F", "/TN", TASK]
+        };
+        let _ = Command::new("schtasks").args(&args).creation_flags(CREATE_NO_WINDOW).output();
+    }
+
+    fn relaunch_elevated() {
+        let Ok(exe) = std::env::current_exe() else { return };
+        let exe = HSTRING::from(exe.as_os_str());
+        let r = unsafe { ShellExecuteW(None, w!("runas"), &exe, PCWSTR::null(), PCWSTR::null(), SW_SHOWNORMAL) };
+        // exit at once so the elevated copy wins the single-instance check;
+        // a declined UAC prompt (r <= 32) keeps this copy running unelevated
+        if r.0 as isize > 32 {
+            std::process::exit(0);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::step_id;

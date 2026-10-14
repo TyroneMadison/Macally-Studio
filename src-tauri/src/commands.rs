@@ -1,7 +1,6 @@
 //! Tauri commands invoked from the webview (lib/ipc.ts).
 
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
@@ -23,22 +22,6 @@ pub trait EngineLike: Send + Sync {
     fn set_profile(&self, p: &Profile);
     fn set_paused(&self, b: bool);
     fn is_paused(&self) -> bool;
-}
-
-/// Stand-in until the real engine is plugged in: maps nothing, remembers pause.
-#[derive(Default)]
-pub struct NoopEngine {
-    paused: AtomicBool,
-}
-
-impl EngineLike for NoopEngine {
-    fn set_profile(&self, _p: &Profile) {}
-    fn set_paused(&self, b: bool) {
-        self.paused.store(b, Ordering::Relaxed);
-    }
-    fn is_paused(&self) -> bool {
-        self.paused.load(Ordering::Relaxed)
-    }
 }
 
 /// Shared app state. Locks are taken one at a time, never nested, so lock order cannot deadlock.
@@ -164,8 +147,10 @@ pub fn get_profile(state: State<'_, AppState>, id: String) -> CmdResult<Profile>
 }
 
 #[tauri::command]
-pub fn save_profile(state: State<'_, AppState>, profile: Profile) -> CmdResult<()> {
-    state.save(profile).map_err(err)
+pub fn save_profile(app: AppHandle, state: State<'_, AppState>, profile: Profile) -> CmdResult<()> {
+    state.save(profile).map_err(err)?;
+    crate::control::resync(&app);
+    Ok(())
 }
 
 #[tauri::command]
@@ -173,17 +158,22 @@ pub fn delete_profile(app: AppHandle, state: State<'_, AppState>, id: String) ->
     if let Some(active) = state.delete(&id).map_err(err)? {
         emit_profile_changed(&app, &active);
     }
+    crate::control::resync(&app);
     Ok(())
 }
 
 #[tauri::command]
-pub fn duplicate_profile(state: State<'_, AppState>, id: String) -> CmdResult<Profile> {
-    state.duplicate(&id).map_err(err)
+pub fn duplicate_profile(app: AppHandle, state: State<'_, AppState>, id: String) -> CmdResult<Profile> {
+    let p = state.duplicate(&id).map_err(err)?;
+    crate::control::resync(&app);
+    Ok(p)
 }
 
 #[tauri::command]
-pub fn import_profile(state: State<'_, AppState>, path: String) -> CmdResult<Profile> {
-    state.import(Path::new(&path)).map_err(err)
+pub fn import_profile(app: AppHandle, state: State<'_, AppState>, path: String) -> CmdResult<Profile> {
+    let p = state.import(Path::new(&path)).map_err(err)?;
+    crate::control::resync(&app);
+    Ok(p)
 }
 
 #[tauri::command]
@@ -204,14 +194,62 @@ pub fn get_settings(state: State<'_, AppState>) -> Settings {
 }
 
 #[tauri::command]
-pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> CmdResult<()> {
-    state.save_settings(settings).map_err(err)
+pub fn save_settings(app: AppHandle, state: State<'_, AppState>, settings: Settings) -> CmdResult<()> {
+    state.save_settings(settings).map_err(err)?;
+    crate::control::resync(&app);
+    Ok(())
 }
 
 #[tauri::command]
 pub fn set_paused(app: AppHandle, state: State<'_, AppState>, paused: bool) {
     state.engine.set_paused(paused);
     let _ = app.emit("paused-changed", json!({ "paused": paused }));
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Status {
+    pub paused: bool,
+    pub active_profile: String,
+    pub hook_running: bool,
+    pub device_found: bool,
+    pub version: String,
+    /// "windows" or "macos".
+    pub platform: &'static str,
+    /// macOS: Accessibility and Input Monitoring are both on. Always true on Windows.
+    pub permissions_ok: bool,
+}
+
+#[tauri::command]
+pub fn get_status(app: AppHandle, state: State<'_, AppState>) -> Status {
+    Status {
+        paused: state.engine.is_paused(),
+        active_profile: state.active_id(),
+        hook_running: crate::engine::hook_running(),
+        device_found: crate::engine::device_found(),
+        version: app.package_info().version.to_string(),
+        platform: std::env::consts::OS,
+        permissions_ok: crate::engine::permissions_ok(),
+    }
+}
+
+type EngineState<'a> = State<'a, Arc<crate::engine::Engine>>;
+
+/// Every key goes to the UI as "key-event" and is swallowed until stop_record (or 15 s pass).
+#[tauri::command]
+pub fn start_record(engine: EngineState<'_>) {
+    engine.set_mode(crate::engine::Mode::Record);
+}
+
+#[tauri::command]
+pub fn stop_record(engine: EngineState<'_>) {
+    engine.set_mode(crate::engine::Mode::Normal);
+}
+
+/// Key Monitor: every key goes to the UI as "key-event"; remapping keeps working.
+#[tauri::command]
+pub fn set_monitor(engine: EngineState<'_>, on: bool) {
+    engine.set_mode(if on { crate::engine::Mode::Monitor } else { crate::engine::Mode::Normal });
 }
 
 #[cfg(test)]
@@ -291,6 +329,23 @@ mod tests {
         let saved = state.store.lock().unwrap().load_settings();
         assert_eq!(saved.active_profile, "macos-default");
         assert!(!saved.close_to_tray);
+    }
+
+    #[test]
+    fn status_serializes_camel_case() {
+        let s = Status {
+            paused: false,
+            active_profile: "windows-default".into(),
+            hook_running: true,
+            device_found: true,
+            version: "1.0.0".into(),
+            platform: "windows",
+            permissions_ok: true,
+        };
+        assert_eq!(
+            serde_json::to_string(&s).unwrap(),
+            r#"{"paused":false,"activeProfile":"windows-default","hookRunning":true,"deviceFound":true,"version":"1.0.0","platform":"windows","permissionsOk":true}"#
+        );
     }
 
     #[test]

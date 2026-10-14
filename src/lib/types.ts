@@ -76,6 +76,8 @@ export type Status = {
   hookRunning: boolean;
   deviceFound: boolean;
   version: string;
+  platform: "windows" | "macos";
+  permissionsOk: boolean; // macOS Accessibility + Input Monitoring; always true on Windows
 };
 
 /** Payload of "update-available" and the result of check_update. */

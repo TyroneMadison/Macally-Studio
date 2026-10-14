@@ -224,9 +224,9 @@ export default function Settings({ store }: { store: AppState }) {
               value={st?.deviceFound ? `USB · VID 2222 · PID 0114 · ${store.layout.keys.length} keys` : "Not detected"}
             />
             <StatusRow
-              ok={!IS_WINDOWS && !!st?.hookRunning}
+              ok={!IS_WINDOWS && !!st?.permissionsOk}
               label="Accessibility and Input Monitoring"
-              value={IS_WINDOWS ? "macOS only" : st?.hookRunning ? "Granted" : "Needed"}
+              value={IS_WINDOWS ? "macOS only" : st?.permissionsOk ? "Granted" : "Needed"}
             />
           </Card>
 

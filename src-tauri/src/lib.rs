@@ -9,11 +9,9 @@ pub mod profiles;
 pub mod tray;
 pub mod version;
 
-use std::sync::Arc;
-
 use tauri::Manager;
 
-use commands::{AppState, NoopEngine};
+use commands::AppState;
 use profiles::Store;
 
 fn show_main(app: &tauri::AppHandle) {
@@ -37,9 +35,20 @@ pub fn run() {
             Some(vec!["--minimized"]),
         ))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .on_window_event(tray::on_window_event)
         .setup(|app| {
-            let state = AppState::load(Store::open()?, Arc::new(NoopEngine::default()))?;
-            app.manage(state);
+            let engine = engine::start(app.handle().clone());
+            app.manage(engine.clone());
+            // loads settings and profiles and hands the active profile to the engine
+            app.manage(AppState::load(Store::open()?, engine)?);
+            tray::build(app.handle())?;
+            control::resync(app.handle()); // hotkeys, tray, start at login, run as administrator
+            foreground::start(app.handle().clone());
+            if std::env::args().any(|a| a == "--minimized")
+                && let Some(w) = app.get_webview_window("main")
+            {
+                let _ = w.hide();
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -55,6 +64,10 @@ pub fn run() {
             commands::get_settings,
             commands::save_settings,
             commands::set_paused,
+            commands::get_status,
+            commands::start_record,
+            commands::stop_record,
+            commands::set_monitor,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Macally Studio");
