@@ -8,7 +8,7 @@
 
 Remap keys, launch apps and Steam games, and switch profiles automatically, on Windows and macOS.
 
-[![Version](https://img.shields.io/badge/Version-1.2-4C8DFF)](https://github.com/TyroneMadison/Macally-Studio/releases/latest)
+[![Version](https://img.shields.io/badge/Version-1.3-4C8DFF)](https://github.com/TyroneMadison/Macally-Studio/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=data:image/svg%2Bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0wIDBoMTEuNHYxMS40SDB6TTEyLjYgMEgyNHYxMS40SDEyLjZ6TTAgMTIuNmgxMS40VjI0SDB6TTEyLjYgMTIuNkgyNFYyNEgxMi42eiIvPjwvc3ZnPg==)](#windows)
 [![macOS](https://img.shields.io/badge/macOS-Intel%20%7C%20Apple%20Silicon-000000?logo=apple&logoColor=white)](#macos)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DD68C)](LICENSE)
