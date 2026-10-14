@@ -288,6 +288,17 @@ pub async fn refresh_catalog(app: AppHandle) -> CmdResult<Vec<AppEntry>> {
         .map_err(err)
 }
 
+/// Browse for .exe/.app: keeps the program in the catalog. The "catalog-progress" event makes the UI refetch.
+#[tauri::command]
+pub async fn add_catalog_entry(app: AppHandle, path: String) -> CmdResult<Vec<AppEntry>> {
+    let all = tauri::async_runtime::spawn_blocking(move || catalog::add_path(&Store::open()?, &path))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(err)?;
+    let _ = app.emit("catalog-progress", json!({ "done": 1, "total": 1, "source": "browse" }));
+    Ok(all)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

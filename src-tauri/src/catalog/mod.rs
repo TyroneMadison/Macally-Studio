@@ -92,6 +92,7 @@ type Scan = fn(&Path) -> anyhow::Result<Vec<AppEntry>>;
 static SCANNING: Mutex<()> = Mutex::new(());
 
 /// Rescan every source, rewrite the cache, emit "catalog-progress" { done, total, source } after each source.
+/// The last event (done == total) goes out only once the cache is written: the UI refetches on it.
 pub fn refresh(store: &Store, app: &AppHandle) -> anyhow::Result<Vec<AppEntry>> {
     let _scanning = SCANNING.lock().unwrap_or_else(|e| e.into_inner());
     let icons_dir = store.data_dir.join("icons");
@@ -109,11 +110,36 @@ pub fn refresh(store: &Store, app: &AppHandle) -> anyhow::Result<Vec<AppEntry>> 
             eprintln!("catalog: {source} scan failed: {e:#}");
             Vec::new()
         }));
-        let progress = Progress { done: i + 1, total: sources.len(), source };
-        let _ = app.emit("catalog-progress", progress);
+        if i + 1 < sources.len() {
+            let _ = app.emit("catalog-progress", Progress { done: i + 1, total: sources.len(), source });
+        }
     }
+    // programs picked with Browse are not found by any scan; keep them while they exist
+    let added = load_cached(store).into_iter().filter(|e| e.kind == "path" && Path::new(&e.launch).exists());
+    lists.push(added.collect());
     let all = merge(lists);
     save_cache(store, &all)?;
+    let (total, source) = (sources.len(), sources[sources.len() - 1].0);
+    let _ = app.emit("catalog-progress", Progress { done: total, total, source });
+    Ok(all)
+}
+
+/// Browse for .exe/.app: adds a `path` entry to the cached catalog (no-op when it is already there).
+pub fn add_path(store: &Store, path: &str) -> anyhow::Result<Vec<AppEntry>> {
+    let _scanning = SCANNING.lock().unwrap_or_else(|e| e.into_inner());
+    let mut all = load_cached(store);
+    if !all.iter().any(|e| e.launch == path) {
+        let name = Path::new(path).file_stem().and_then(|s| s.to_str()).unwrap_or(path);
+        all.push(AppEntry {
+            id: format!("app:{path}"),
+            name: name.into(),
+            kind: "path".into(),
+            launch: path.into(),
+            icon: None,
+            source: if cfg!(target_os = "macos") { "macos" } else { "windows" }.into(),
+        });
+        save_cache(store, &all)?;
+    }
     Ok(all)
 }
 
@@ -162,6 +188,18 @@ mod tests {
         ]);
         let names: Vec<_> = v.iter().map(|e| e.name.as_str()).collect();
         assert_eq!(names, ["First", "Other"]);
+    }
+
+    #[test]
+    fn add_path_appends_one_named_entry() {
+        let store = crate::profiles::temp_store("catalog-add");
+        let exe = if cfg!(windows) { r"C:\Games\Tool.exe" } else { "/Applications/Tool.app" };
+        let v = add_path(&store, exe).unwrap();
+        assert_eq!(v[0].id, format!("app:{exe}"));
+        assert_eq!((v[0].name.as_str(), v[0].kind.as_str()), ("Tool", "path"));
+        assert_eq!(add_path(&store, exe).unwrap().len(), 1);
+        assert_eq!(load_cached(&store), v);
+        std::fs::remove_dir_all(&store.data_dir).unwrap();
     }
 
     #[test]

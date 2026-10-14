@@ -13,7 +13,7 @@ import {
   splitArgs,
   type Group,
 } from "../lib/actions";
-import { refreshCatalog } from "../lib/ipc";
+import { addCatalogEntry, refreshCatalog } from "../lib/ipc";
 import type { Action, AppEntry, Profile } from "../lib/types";
 
 export type ActionPickerProps = {
@@ -41,7 +41,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "builtin", label: "Built-in" },
+  { id: "builtin", label: isMac ? "System" : "Windows apps" },
   { id: "installed", label: "Installed" },
 ];
 
@@ -142,8 +142,10 @@ function PickerDialog({ keyCode, initial, catalog, profiles, onPick, onClose }: 
         kind === "app" ? [{ name: "Programs", extensions: isMac ? ["app"] : ["exe", "lnk", "bat", "cmd"] }] : undefined;
       const path = await openDialog({ multiple: false, directory: false, filters });
       if (typeof path !== "string") return;
-      if (kind === "app") setPicked({ type: "launch_app", app: { kind: "path", path, args: "" } });
-      else if (kind === "file") setTarget(path);
+      if (kind === "app") {
+        setPicked({ type: "launch_app", app: { kind: "path", path, args: "" } });
+        setFresh(await addCatalogEntry(path)); // a tile for it, now and in later opens
+      } else if (kind === "file") setTarget(path);
       else setProgram(path);
     } catch (e) {
       setError(String(e));

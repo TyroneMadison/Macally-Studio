@@ -17,6 +17,7 @@ export const saveSettings = (settings: Settings) => invoke<void>("save_settings"
 export const setPaused = (paused: boolean) => invoke<void>("set_paused", { paused });
 export const getCatalog = () => invoke<AppEntry[]>("get_catalog");
 export const refreshCatalog = () => invoke<AppEntry[]>("refresh_catalog");
+export const addCatalogEntry = (path: string) => invoke<AppEntry[]>("add_catalog_entry", { path });
 
 // Record and Monitor share the engine's one mode. The Monitor wish lives here, so ending a Record
 // (from any field, mounted or not) puts Monitor back exactly when the Keyboard view still wants it.
