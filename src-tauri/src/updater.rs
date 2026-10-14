@@ -1,11 +1,7 @@
 //! Update check and install through tauri-plugin-updater (GitHub Releases latest.json).
-use std::time::Duration;
-
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 use tauri_plugin_updater::UpdaterExt;
-
-use crate::commands::AppState;
 
 /// Payload of the "update-available" event and the result of `check_update`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -30,31 +26,14 @@ pub async fn check(app: &AppHandle) -> anyhow::Result<Option<UpdateInfo>> {
     Ok(Some(found))
 }
 
-/// Downloads and installs the newer version, then relaunches. Does nothing when already current.
+/// Downloads and installs the newer version, then relaunches. Fails when there is none (e.g. the release was pulled).
 /// On Windows the installer closes the app itself before `restart` is reached.
 pub async fn install(app: &AppHandle) -> anyhow::Result<()> {
     let Some(update) = app.updater()?.check().await? else {
-        return Ok(());
+        anyhow::bail!("no update available");
     };
     update.download_and_install(|_, _| {}, || {}).await?;
     app.restart()
-}
-
-/// Background check at startup when "Check for updates automatically" is on.
-pub fn check_on_launch(app: &AppHandle) {
-    let enabled = app.try_state::<AppState>().is_some_and(|s| s.settings.lock().unwrap().auto_check_updates);
-    if !enabled {
-        return;
-    }
-    let app = app.clone();
-    std::thread::spawn(move || {
-        // ponytail: fixed delay so the UI has attached its "update-available" listener;
-        // swap for a UI-ready handshake if the banner is ever missed.
-        std::thread::sleep(Duration::from_secs(5));
-        if let Err(e) = tauri::async_runtime::block_on(check(&app)) {
-            eprintln!("update check failed: {e:#}");
-        }
-    });
 }
 
 #[tauri::command]

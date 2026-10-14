@@ -71,7 +71,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refresh().catch((e) => setError(String(e)));
+    refresh().then(
+      () => {
+        // checked from here, not from Rust at startup, so the result cannot arrive before the UI listens
+        if (latest.current?.settings.autoCheckUpdates)
+          ipc.checkUpdate().then((u) => u && setUpdate(u)).catch((e) => console.warn("update check failed", e));
+      },
+      (e) => setError(String(e)),
+    );
     const subs = [
       ipc.onKeyEvent(setLastKey),
       ipc.onProfileChanged(() => void refresh()),

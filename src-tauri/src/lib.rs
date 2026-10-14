@@ -51,7 +51,6 @@ pub fn run() {
             if !std::env::args().any(|a| a == "--minimized") {
                 show_main(app.handle());
             }
-            updater::check_on_launch(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
