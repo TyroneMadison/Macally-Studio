@@ -1,0 +1,79 @@
+[package]
+name = "macally-studio"
+version = "1.0.0"
+description = "Remap the Macally backlit Mac keyboard on Windows and macOS"
+authors = ["Tyrone Madison"]
+license = "MIT"
+repository = "https://github.com/TyroneMadison/Macally-Studio"
+edition = "2024"
+rust-version = "1.90"
+
+[lib]
+name = "macally_studio_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.2", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.3", features = ["tray-icon", "protocol-asset"] }
+tauri-plugin-autostart = "2.7.0"
+tauri-plugin-dialog = "2.8.2"
+tauri-plugin-global-shortcut = "2.4.1"
+tauri-plugin-opener = "2.7.1"
+tauri-plugin-process = "2.4.0"
+tauri-plugin-single-instance = "2.5.3"
+tauri-plugin-updater = "2.13.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0.104"
+dirs = "7.0.0"
+keyvalues-parser = "0.2.4"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62.2", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Security",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Com",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Threading",
+  "Win32_UI_Accessibility",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_Common",
+  "Win32_UI_WindowsAndMessaging",
+] }
+winreg = "0.56.0"
+png = "0.18.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10.1"
+core-graphics = "0.25.0"
+objc2 = "0.6.5"
+objc2-foundation = { version = "0.3.2", features = [
+  "NSArray",
+  "NSData",
+  "NSDictionary",
+  "NSEnumerator",
+  "NSNotification",
+  "NSObject",
+  "NSOperation",
+  "NSString",
+  "NSThread",
+  "NSURL",
+  "NSValue",
+] }
+objc2-app-kit = { version = "0.3.2", features = [
+  "NSApplication",
+  "NSBitmapImageRep",
+  "NSGraphics",
+  "NSImage",
+  "NSImageRep",
+  "NSResponder",
+  "NSRunningApplication",
+  "NSWorkspace",
+] }
+block2 = "0.6.2"
+plist = "1.10.1"

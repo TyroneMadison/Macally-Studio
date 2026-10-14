@@ -1,0 +1,87 @@
+@font-face {
+  font-family: "Manrope";
+  src: url("./assets/fonts/Manrope-Variable.ttf") format("truetype");
+  font-weight: 200 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("./assets/fonts/JetBrainsMono-Variable.ttf") format("truetype");
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+:root {
+  --bg: #0f0f11;
+  --surface: #19191c;
+  --raised: #212125;
+  --border: #2b2b30;
+  --text: #f2f2f4;
+  --muted: #8e8e97;
+  --primary: #4c8dff;
+  --ok: #3dd68c;
+  --led: #ffffff;
+  --rail: 72px;
+  --font-ui: "Manrope", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+code, kbd { font-family: var(--font-mono); }
+
+h1 { font-size: 18px; font-weight: 600; margin: 0 0 12px; }
+
+.app {
+  display: grid;
+  grid-template-columns: var(--rail) 1fr;
+  height: 100%;
+}
+
+.view { padding: 20px; overflow: auto; }
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.rail-mark {
+  width: 36px; height: 36px; margin-bottom: 10px;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  background: var(--raised);
+  color: var(--text);
+  font-weight: 800;
+}
+
+.rail-spacer { flex: 1; }
+
+.rail-btn {
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.rail-btn:hover { background: var(--raised); color: var(--text); }
+.rail-btn.active { background: var(--raised); color: var(--primary); }
+.rail-btn.pause.on { color: var(--ok); }
+.rail-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
