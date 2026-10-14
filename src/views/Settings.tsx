@@ -132,7 +132,7 @@ function UpdatesCard({ store }: { store: AppState }) {
             <input
               type="checkbox"
               checked={store.settings.autoCheckUpdates}
-              onChange={(e) => void store.saveSettings({ ...store.settings, autoCheckUpdates: e.target.checked })}
+              onChange={(e) => void store.saveSettings({ autoCheckUpdates: e.target.checked })}
             />
             Check automatically on launch
           </label>
@@ -149,12 +149,7 @@ function UpdatesCard({ store }: { store: AppState }) {
 export default function Settings({ store }: { store: AppState }) {
   const s = store.settings;
   const st = store.status;
-  const save = (next: SettingsData) => void store.saveSettings(next);
-  const toggle = (key: ToggleKey, on: boolean) => {
-    const next = { ...s };
-    next[key] = on;
-    save(next);
-  };
+  const save = (patch: Partial<SettingsData>) => void store.saveSettings(patch);
 
   return (
     <div className="page">
@@ -175,7 +170,7 @@ export default function Settings({ store }: { store: AppState }) {
                   role="switch"
                   className="switch"
                   checked={s[t.key]}
-                  onChange={(e) => toggle(t.key, e.target.checked)}
+                  onChange={(e) => save({ [t.key]: e.target.checked })}
                 />
               </label>
             ))}
@@ -189,7 +184,7 @@ export default function Settings({ store }: { store: AppState }) {
                     key={m.id}
                     type="button"
                     aria-pressed={s.switchMode === m.id}
-                    onClick={() => save({ ...s, switchMode: m.id })}
+                    onClick={() => save({ switchMode: m.id })}
                   >
                     <span className="strong">{m.title}</span>
                     <span className="muted small">{m.hint}</span>
@@ -211,7 +206,7 @@ export default function Settings({ store }: { store: AppState }) {
                 <HotkeyField
                   id={`hotkey-${h.key}`}
                   value={s.hotkeys[h.key]}
-                  onChange={(v) => save({ ...s, hotkeys: { ...s.hotkeys, [h.key]: v } })}
+                  onChange={(v) => save({ hotkeys: { ...s.hotkeys, [h.key]: v } })}
                 />
               </div>
             ))}

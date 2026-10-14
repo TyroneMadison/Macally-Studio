@@ -1,5 +1,5 @@
 // App-wide data loaded from Rust, kept fresh by Tauri events. Views get it as `store`.
-import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as ipc from "./ipc";
 import layoutJson from "./layout.json";
 import type { AppEntry, KeyEvent, Layout, Profile, Settings, Status, UpdateInfo } from "./types";
@@ -17,8 +17,10 @@ export type AppState = {
   update: UpdateInfo | null; // last "update-available" event
   refresh(): Promise<void>;
   setActiveProfile(id: string): Promise<void>;
-  saveProfile(p: Profile): Promise<void>;
-  saveSettings(s: Settings): Promise<void>;
+  /** Merges `patch` onto the saved profile with that id (a new id saves `patch` as is). */
+  saveProfile(patch: Pick<Profile, "id"> & Partial<Profile>): Promise<void>;
+  /** Merges `patch` onto the saved settings. */
+  saveSettings(patch: Partial<Settings>): Promise<void>;
   setPaused(b: boolean): Promise<void>;
 };
 
@@ -35,6 +37,16 @@ async function load(): Promise<Data> {
   return { profiles, settings, catalog, status };
 }
 
+/** Runs the tasks handed to it one at a time; a failed task does not stop the ones after it. */
+export function serial() {
+  let tail: Promise<unknown> = Promise.resolve();
+  return <T>(task: () => Promise<T>): Promise<T> => {
+    const run = tail.then(task);
+    tail = run.catch(() => {});
+    return run;
+  };
+}
+
 const Ctx = createContext<AppState | null>(null);
 
 export function useAppState(): AppState {
@@ -49,7 +61,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [lastKey, setLastKey] = useState<KeyEvent | null>(null);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
 
-  const refresh = useCallback(async () => setData(await load()), []);
+  const latest = useRef<Data | null>(null);
+  const [queue] = useState(serial);
+
+  const refresh = useCallback(async () => {
+    const d = await load();
+    latest.current = d;
+    setData(d);
+  }, []);
 
   useEffect(() => {
     refresh().catch((e) => setError(String(e)));
@@ -70,6 +89,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const value = useMemo((): AppState | null => {
     if (!data) return null;
     const thenRefresh = (p: Promise<unknown>) => p.then(refresh);
+    // Each save merges onto what the previous save reloaded, so a quick second edit
+    // (blur a field, then click a switch) cannot write back the first edit's old values.
+    const queued = (task: (d: Data) => Promise<unknown>) => queue(() => thenRefresh(task(latest.current!)));
     return {
       ...data,
       layout,
@@ -78,11 +100,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       update,
       refresh,
       setActiveProfile: (id) => thenRefresh(ipc.setActiveProfile(id)),
-      saveProfile: (p) => thenRefresh(ipc.saveProfile(p)),
-      saveSettings: (s) => thenRefresh(ipc.saveSettings(s)),
+      saveProfile: (patch) =>
+        queued((d) => ipc.saveProfile({ ...d.profiles.find((p) => p.id === patch.id), ...patch } as Profile)),
+      saveSettings: (patch) => queued((d) => ipc.saveSettings({ ...d.settings, ...patch })),
       setPaused: (b) => thenRefresh(ipc.setPaused(b)),
     };
-  }, [data, lastKey, update, refresh]);
+  }, [data, lastKey, update, refresh, queue]);
 
   if (error) return createElement("p", { className: "load-error" }, `Could not load Macally Studio data: ${error}`);
   if (!value) return null;

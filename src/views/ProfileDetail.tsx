@@ -28,7 +28,7 @@ export default function ProfileDetail({ store, profile: p, onSelect, onEditKeys 
     setError(null);
     task.catch((e) => setError(String(e)));
   };
-  const update = (patch: Partial<Profile>) => run(store.saveProfile({ ...p, ...patch }));
+  const update = (patch: Partial<Profile>) => run(store.saveProfile({ ...patch, id: p.id }));
   const appName = (rule: string) => store.catalog.find((a) => ruleFor(a) === rule)?.name ?? rule;
   const keyName = (code: string) => store.layout.keys.find((k) => k.code === code)?.[legend] || code;
 
