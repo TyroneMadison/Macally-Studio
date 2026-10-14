@@ -1,12 +1,14 @@
 //! Tauri commands invoked from the webview (lib/ipc.ts).
 
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use serde_json::json;
 use tauri::{AppHandle, Emitter, State};
 
+use crate::catalog::{self, AppEntry};
 use crate::profiles::{Profile, Settings, Store, default_profile_id};
 
 /// The 107-key layout, compiled into the binary (no resource file to ship).
@@ -256,6 +258,32 @@ pub fn stop_record(engine: EngineState<'_>) {
 #[tauri::command]
 pub fn set_monitor(engine: EngineState<'_>, on: bool) {
     engine.set_mode(if on { crate::engine::Mode::Monitor } else { crate::engine::Mode::Normal });
+}
+
+/// The cached catalog, returned at once (empty on the very first run). The first call per launch
+/// also starts a background rescan; its "catalog-progress" events tell the UI to fetch again.
+#[tauri::command]
+pub async fn get_catalog(app: AppHandle) -> CmdResult<Vec<AppEntry>> {
+    static STARTED: AtomicBool = AtomicBool::new(false);
+    let store = Store::open().map_err(err)?;
+    let cached = catalog::load_cached(&store);
+    if !STARTED.swap(true, Ordering::Relaxed) {
+        std::thread::spawn(move || {
+            if let Err(e) = catalog::refresh(&store, &app) {
+                eprintln!("catalog: background refresh failed: {e:#}");
+            }
+        });
+    }
+    Ok(cached)
+}
+
+/// Full rescan, waited for (the picker's Refresh button).
+#[tauri::command]
+pub async fn refresh_catalog(app: AppHandle) -> CmdResult<Vec<AppEntry>> {
+    tauri::async_runtime::spawn_blocking(move || catalog::refresh(&Store::open()?, &app))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(err)
 }
 
 #[cfg(test)]

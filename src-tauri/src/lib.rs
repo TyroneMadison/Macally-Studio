@@ -69,6 +69,8 @@ pub fn run() {
             commands::start_record,
             commands::stop_record,
             commands::set_monitor,
+            commands::get_catalog,
+            commands::refresh_catalog,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Macally Studio")
