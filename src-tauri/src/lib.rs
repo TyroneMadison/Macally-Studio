@@ -8,6 +8,7 @@ pub mod hotkeys;
 pub mod keymap;
 pub mod profiles;
 pub mod tray;
+pub mod updater;
 pub mod version;
 
 use tauri::Manager;
@@ -50,6 +51,7 @@ pub fn run() {
             if !std::env::args().any(|a| a == "--minimized") {
                 show_main(app.handle());
             }
+            updater::check_on_launch(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -72,6 +74,8 @@ pub fn run() {
             commands::get_catalog,
             commands::refresh_catalog,
             commands::add_catalog_entry,
+            updater::check_update,
+            updater::install_update,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Macally Studio")

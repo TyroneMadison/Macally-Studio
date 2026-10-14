@@ -3,7 +3,7 @@
 
 use tauri::menu::{CheckMenuItem, Menu, MenuBuilder, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Listener, Manager, Window, WindowEvent, Wry};
+use tauri::{AppHandle, Listener, Manager, Window, WindowEvent, Wry};
 
 use crate::commands::AppState;
 use crate::control;
@@ -95,7 +95,7 @@ fn on_menu(app: &AppHandle, id: &str) {
             crate::show_main(app);
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = check_updates(&app).await {
+                if let Err(e) = crate::updater::check(&app).await {
                     eprintln!("update check: {e:#}");
                 }
             });
@@ -110,17 +110,6 @@ fn on_menu(app: &AppHandle, id: &str) {
         eprintln!("tray {id}: {e:#}");
     }
     refresh(app); // a CheckMenuItem toggles itself on click; redraw from the real state
-}
-
-/// Emits "update-available" { version, notes } when GitHub has a newer release.
-async fn check_updates(app: &AppHandle) -> anyhow::Result<()> {
-    use tauri_plugin_updater::UpdaterExt;
-    if let Some(update) = app.updater()?.check().await? {
-        let version = crate::version::display(&update.version);
-        let notes = update.body.clone().unwrap_or_default();
-        app.emit("update-available", serde_json::json!({ "version": version, "notes": notes }))?;
-    }
-    Ok(())
 }
 
 /// Close-to-tray: hide the main window instead of quitting when the setting is on.
