@@ -1,3 +1,5 @@
+pub mod steam;
+
 // App catalog: Start-menu apps (Windows) or app bundles (macOS) plus the Steam library.
 // The id prefix carries the picker section: "builtin:" / "app:" / "steam:".
 
