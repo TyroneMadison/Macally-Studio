@@ -124,9 +124,11 @@ pub fn scan(icons_dir: &Path) -> anyhow::Result<Vec<AppEntry>> {
     };
     let folders = std::fs::read_to_string(root.join("steamapps").join("libraryfolders.vdf"))
         .unwrap_or_default();
+    // The pre-2021 vdf lists only the extra libraries, so the root is always scanned.
     let mut libraries = parse_library_folders(&folders);
-    if libraries.is_empty() {
-        libraries.push(root.clone());
+    let same = |l: &PathBuf| l.to_string_lossy().eq_ignore_ascii_case(&root.to_string_lossy());
+    if !libraries.iter().any(same) {
+        libraries.insert(0, root.clone());
     }
     let mut out = Vec::new();
     for lib in libraries {
