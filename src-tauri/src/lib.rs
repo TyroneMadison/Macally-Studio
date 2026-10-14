@@ -3,6 +3,7 @@ pub mod commands;
 pub mod control;
 pub mod engine;
 pub mod foreground;
+pub mod hotkeys;
 pub mod keymap;
 pub mod profiles;
 pub mod version;
