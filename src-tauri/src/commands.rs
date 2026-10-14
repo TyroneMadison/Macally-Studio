@@ -89,8 +89,8 @@ impl AppState {
         Ok(())
     }
 
-    /// The manual choice: engine table + settings.json. Tray, hotkeys and the
-    /// switch_profile action should call this too.
+    /// Engine table + settings.json. Every switch goes through here: the UI, tray, hotkeys,
+    /// the switch_profile action and Auto mode (which remembers the last manual pick itself).
     pub fn activate(&self, id: &str) -> anyhow::Result<()> {
         let p = self.profile(id)?;
         self.engine.set_profile(&p);
