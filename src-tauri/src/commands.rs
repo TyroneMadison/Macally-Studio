@@ -195,8 +195,13 @@ pub fn get_settings(state: State<'_, AppState>) -> Settings {
 
 #[tauri::command]
 pub fn save_settings(app: AppHandle, state: State<'_, AppState>, settings: Settings) -> CmdResult<()> {
+    let login = |s: &Settings| (s.start_at_login, s.run_as_admin);
+    let login_changed = login(&state.settings.lock().unwrap()) != login(&settings);
     state.save_settings(settings).map_err(err)?;
     crate::control::resync(&app);
+    if login_changed {
+        crate::control::sync_autostart(&app);
+    }
     Ok(())
 }
 

@@ -42,7 +42,8 @@ pub fn run() {
             // loads settings and profiles and hands the active profile to the engine
             app.manage(AppState::load(Store::open()?, engine)?);
             tray::build(app.handle())?;
-            control::resync(app.handle()); // hotkeys, tray, start at login, run as administrator
+            control::resync(app.handle()); // hotkeys and tray
+            control::sync_autostart(app.handle()); // start at login, run as administrator
             foreground::start(app.handle().clone());
             if std::env::args().any(|a| a == "--minimized")
                 && let Some(w) = app.get_webview_window("main")

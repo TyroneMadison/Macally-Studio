@@ -38,8 +38,7 @@ pub fn step(app: &AppHandle, step: i32) -> anyhow::Result<()> {
     }
 }
 
-/// After startup and after any profile or settings change: re-register hotkeys,
-/// rebuild the tray, and apply "start at login" / "run as administrator".
+/// After startup and after any profile or settings change: re-register hotkeys and rebuild the tray.
 pub fn resync(app: &AppHandle) {
     let Some(state) = app.try_state::<AppState>() else { return };
     let settings = state.settings.lock().unwrap().clone();
@@ -48,14 +47,17 @@ pub fn resync(app: &AppHandle) {
         eprintln!("hotkeys: {e:#}");
     }
     crate::tray::refresh(app);
-    sync_autostart(app, &settings);
 }
 
-fn sync_autostart(app: &AppHandle, s: &crate::profiles::Settings) {
+/// Applies "start at login" / "run as administrator". Called at startup and when settings are
+/// saved, the only places they can change; it may run schtasks or show a UAC prompt.
+pub fn sync_autostart(app: &AppHandle) {
     use tauri_plugin_autostart::ManagerExt;
     if cfg!(debug_assertions) {
         return; // `tauri dev` must not register the dev binary as a login item
     }
+    let Some(state) = app.try_state::<AppState>() else { return };
+    let s = state.settings.lock().unwrap().clone();
     // elevated starts at login come from a scheduled task instead of the Run key / LaunchAgent
     let admin = cfg!(target_os = "windows") && s.run_as_admin;
     let want = s.start_at_login && !admin;
@@ -73,6 +75,7 @@ fn sync_autostart(app: &AppHandle, s: &crate::profiles::Settings) {
 mod elevation {
     use std::os::windows::process::CommandExt;
     use std::process::Command;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     use windows::Win32::UI::Shell::{IsUserAnAdmin, ShellExecuteW};
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
@@ -80,11 +83,13 @@ mod elevation {
 
     const TASK: &str = "Macally Studio";
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    /// The UAC prompt is shown at most once per process; a declined prompt is not asked again.
+    static ASKED: AtomicBool = AtomicBool::new(false);
 
     /// `logon_task`: keep an ONLOGON task at highest privileges. `admin`: this process must be elevated.
     pub fn sync(logon_task: bool, admin: bool) {
         let elevated = unsafe { IsUserAnAdmin() }.as_bool();
-        if admin && !elevated {
+        if admin && !elevated && !ASKED.swap(true, Ordering::SeqCst) {
             relaunch_elevated();
         }
         if !elevated {
