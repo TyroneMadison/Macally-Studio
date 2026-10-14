@@ -213,3 +213,20 @@ fn builtin_key_names_exist_in_keymap() {
         }
     }
 }
+
+#[test]
+fn community_example_profile_loads() {
+    let p: Profile = serde_json::from_str(include_str!("../../../community/example-profile.json"))
+        .expect("community/example-profile.json must match the Profile format");
+    assert_eq!(p.schema, 1);
+    assert!(!p.builtin);
+    assert!(!p.bindings.is_empty());
+    for (code, b) in &p.bindings {
+        assert!(crate::keymap::def(code).is_some(), "unknown key {code}");
+        if let Action::KeyCombo { keys } = &b.action {
+            for k in keys {
+                assert!(crate::keymap::def(k).is_some(), "unknown combo key {k}");
+            }
+        }
+    }
+}
