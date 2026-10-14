@@ -1,6 +1,6 @@
 [package]
 name = "macally-studio"
-version = "1.1.0"
+version = "1.2.0"
 description = "Remap the Macally backlit Mac keyboard on Windows and macOS"
 authors = ["Tyrone Madison"]
 license = "MIT"
