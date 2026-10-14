@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "id": "example-profile",
+  "name": "Example profile",
+  "builtin": false,
+  "hotkey": null,
+  "autoApps": [],
+  "bindings": {
+    "F13": { "mods": [], "action": { "type": "key_combo", "keys": ["ControlLeft", "KeyZ"] } },
+    "F14": { "mods": [], "action": { "type": "key_combo", "keys": ["ControlLeft", "ShiftLeft", "KeyZ"] } },
+    "F15": { "mods": [], "action": { "type": "open", "target": "https://github.com/TyroneMadison/Macally-Studio/tree/main/community" } },
+    "Eject": { "mods": [], "action": { "type": "steam_game", "appid": 620, "name": "Portal 2" } },
+    "NumpadEqual": { "mods": [], "action": { "type": "pass_through" } }
+  }
+}

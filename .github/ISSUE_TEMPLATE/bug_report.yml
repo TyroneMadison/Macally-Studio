@@ -1,0 +1,52 @@
+name: Bug report
+description: Something does not work the way it should.
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Macally Studio version
+      description: Shown in Settings under Updates.
+      placeholder: "1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Bind F13 to Calculator
+        2. Open Notepad
+        3. Press F13
+    validations:
+      required: true
+  - type: textarea
+    id: monitor
+    attributes:
+      label: Key Monitor output
+      description: For a key problem, open the Keyboard view, press the key, and paste what the Key Monitor strip shows.
+      render: text
+  - type: textarea
+    id: profile
+    attributes:
+      label: Profile
+      description: For a binding problem, paste the exported profile (Profiles, Export).
+      render: json

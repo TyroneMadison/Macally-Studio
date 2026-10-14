@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest an idea for Macally Studio.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the task or workflow first, then the idea.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Which systems?
+      multiple: true
+      options:
+        - Windows
+        - macOS
