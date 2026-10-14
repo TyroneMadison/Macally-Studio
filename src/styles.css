@@ -327,3 +327,35 @@ a:hover { color: #7faaff; }
 .ap-sel code { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
 .ap-error { color: #ff6b6b; }
 .ap button:focus-visible, .ap input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Inspector + Key Monitor */
+.insp { gap: 16px; }
+.insp-key { display: flex; align-items: center; gap: 14px; }
+.insp-cap { min-width: 56px; height: 56px; border-radius: 10px; font-size: 15px; box-shadow: 0 0 18px rgba(255, 255, 255, 0.55), 0 3px 0 #000; }
+.insp-name { font-weight: 700; font-size: 16px; }
+.insp-key .muted { font-size: 12px; }
+.insp-card { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px; background: var(--raised); border: 1px solid var(--border); }
+.insp-bound { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.insp-type { flex: none; padding: 4px 8px; border-radius: 6px; background: #2a2a2f; border: 1px solid #3a3a42; font-family: var(--font-mono); font-size: 12px; color: #fff; }
+.insp-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insp-detail { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.insp-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.insp-pills button {
+  height: 30px; padding: 0 11px; border-radius: 8px; cursor: pointer;
+  border: 1px solid #3a3a42; background: var(--raised); color: #c9c9cf; font: inherit; font-weight: 600; font-size: 12px;
+}
+.insp-pills button[aria-pressed="true"] { border-color: var(--primary); background: rgba(76, 141, 255, 0.16); color: #fff; }
+.insp-pills button:disabled { opacity: 0.45; cursor: default; }
+.insp-field { display: flex; flex-direction: column; gap: 8px; }
+.insp-field .muted { font-size: 12px; }
+.insp-spacer { flex: 1; }
+.insp-actions { display: flex; gap: 8px; }
+.insp-actions .btn { height: 40px; padding: 0 14px; font-size: 14px; }
+.insp-actions .btn.primary { flex: 1; }
+.insp button:focus-visible, .insp select:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.km {
+  display: flex; flex-direction: column; gap: 4px; padding: 10px 12px;
+  border-radius: 10px; background: #141416; border: 1px dashed var(--border);
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted); overflow-wrap: anywhere;
+}
+.km b { color: var(--text); font-weight: 600; }
