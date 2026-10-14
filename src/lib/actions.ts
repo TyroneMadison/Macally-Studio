@@ -4,7 +4,8 @@ import type { Action, AppEntry, KeyEvent, Profile } from "./types";
 export const isMac = typeof navigator !== "undefined" && /Macintosh|Mac OS X/.test(navigator.userAgent);
 
 export type Mod = "Ctrl" | "Alt" | "Shift" | "Meta";
-const MOD_ORDER: Mod[] = ["Ctrl", "Alt", "Shift", "Meta"];
+/** Label order: Control, Option, Shift, Command on a Mac; Win first on Windows ("Win + Shift + S"). */
+const MOD_ORDER: Mod[] = isMac ? ["Ctrl", "Alt", "Shift", "Meta"] : ["Meta", "Ctrl", "Alt", "Shift"];
 
 /** Typed names -> key ids the engine accepts (modifier aliases or W3C codes). */
 const NAMES: Record<string, string> = {
@@ -81,7 +82,8 @@ export function joinArgs(args: string[]): string {
 export function isComplete(a: Action): boolean {
   switch (a.type) {
     case "key_combo":
-      return a.keys.length > 0;
+      // a typo ("Sfit") would save, light the key, then be dropped by the engine
+      return a.keys.length > 0 && a.keys.every((k) => modAlias(k) !== null || KEY_CODES.includes(k));
     case "launch_app":
       return (a.app.kind === "path" ? a.app.path : a.app.id).trim() !== "";
     case "steam_game":

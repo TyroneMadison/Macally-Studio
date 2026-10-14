@@ -2,7 +2,7 @@ import { useState } from "react";
 import ActionPicker from "./ActionPicker";
 import ChordField from "./ChordField";
 import KeyMonitor from "./KeyMonitor";
-import { describeAction, isComplete, isMac } from "../lib/actions";
+import { describeAction, formatChord, isComplete, isMac } from "../lib/actions";
 import type { Action, AppEntry, Binding, KeyEvent, Layout, Modifier, Profile } from "../lib/types";
 
 export type InspectorProps = {
@@ -92,7 +92,7 @@ function KeyEditor({ keyCode, layout, profile, onChange, catalog, profiles }: In
           <span className="insp-title">{summary.title}</span>
         </div>
         {summary.detail && <code className="insp-detail">{summary.detail}</code>}
-        {mods.length > 0 && <span className="muted">Only while holding {mods.join(" + ")}</span>}
+        {mods.length > 0 && <span className="muted">Only while holding {formatChord(mods)}</span>}
       </div>
 
       <div>

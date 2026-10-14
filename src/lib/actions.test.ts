@@ -60,6 +60,7 @@ describe("recordStep", () => {
     expect(s.done).toBeNull();
     s = recordStep(s.held, ev("KeyS"));
     expect(s.done).toEqual(["Ctrl", "Shift", "KeyS"]);
+    expect(recordStep(["Shift", "Meta"], ev("KeyS")).done).toEqual(["Meta", "Shift", "KeyS"]); // Win + Shift + S
   });
 
   it("uses mods reported on the event and finishes on a lone modifier release", () => {
@@ -74,6 +75,9 @@ describe("recordStep", () => {
 describe("picker helpers", () => {
   it("treats the pill templates as incomplete", () => {
     expect(isComplete({ type: "key_combo", keys: [] })).toBe(false);
+    expect(isComplete({ type: "key_combo", keys: ["Ctrl", "Sfit"] })).toBe(false);
+    expect(isComplete({ type: "key_combo", keys: ["Win", "Shift", "KeyS"] })).toBe(true);
+    expect(isComplete({ type: "key_combo", keys: ["AudioVolumeUp"] })).toBe(true);
     expect(isComplete({ type: "launch_app", app: { kind: "path", path: "", args: "" } })).toBe(false);
     expect(isComplete({ type: "steam_game", appid: 0, name: "" })).toBe(false);
     expect(isComplete({ type: "switch_profile", profile: "" })).toBe(false);

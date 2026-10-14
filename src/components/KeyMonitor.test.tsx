@@ -9,9 +9,9 @@ describe("KeyMonitor", () => {
 
   it("shows code, held modifiers and the raw OS report", () => {
     const html = renderToStaticMarkup(
-      <KeyMonitor last={{ code: "F14", mods: ["Shift"], down: true, raw: "scan 0x65 ext 0 vk 0x7D" }} />,
+      <KeyMonitor last={{ code: "F14", mods: ["Meta", "Shift"], down: true, raw: "scan 0x65 ext 0 vk 0x7D" }} />,
     );
-    expect(html).toContain("last press · <b>F14</b> with Shift");
+    expect(html).toContain("last press · <b>F14</b> with Win + Shift");
     expect(html).toContain("scan 0x65 ext 0 vk 0x7D");
   });
 });

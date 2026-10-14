@@ -1,3 +1,4 @@
+import { formatChord } from "../lib/actions";
 import type { KeyEvent } from "../lib/types";
 
 /** Monitor strip: what the OS reported for the last key (engine Monitor mode). */
@@ -8,7 +9,7 @@ export default function KeyMonitor({ last }: { last: KeyEvent | null }) {
         <>
           <span>
             last {last.down ? "press" : "release"} · <b>{last.code}</b>
-            {last.mods.length > 0 && ` with ${last.mods.join(" + ")}`}
+            {last.mods.length > 0 && ` with ${formatChord(last.mods)}`}
           </span>
           <span>{last.raw}</span>
         </>
