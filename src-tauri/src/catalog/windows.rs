@@ -150,7 +150,7 @@ fn save_icon_png(parsing_name: &str, file: &Path) -> anyhow::Result<()> {
         anyhow::ensure!(w > 0 && lines == h, "GetDIBits copied {lines} of {h} rows");
         (w as u32, h as u32, px)
     };
-    for c in px.chunks_exact_mut(4) {
+    for c in px.as_chunks_mut::<4>().0 {
         c.swap(0, 2); // BGRA -> RGBA
     }
     // ponytail: the shell bitmap may be premultiplied; semi-transparent edges come out a little dark,
