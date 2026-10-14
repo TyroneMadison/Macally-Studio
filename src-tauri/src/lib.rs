@@ -1,3 +1,4 @@
+pub mod actions;
 pub mod commands;
 pub mod keymap;
 pub mod version;
