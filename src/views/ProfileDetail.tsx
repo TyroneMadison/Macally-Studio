@@ -131,6 +131,11 @@ export default function ProfileDetail({ store, profile: p, onSelect, onEditKeys 
             ))}
           </div>
         )}
+        {p.id === "windows-default" && (
+          <div className="muted small">
+            These bindings expect Fn-Lock on: press fn+esc once so the top row sends F1-F15.
+          </div>
+        )}
         <button type="button" className="link" onClick={onEditKeys}>
           Edit on keyboard
         </button>

@@ -221,7 +221,7 @@ export default function Settings({ store }: { store: AppState }) {
             <StatusRow
               ok={!!st?.deviceFound}
               label="Macally keyboard"
-              value={st?.deviceFound ? "USB · VID 2222 · PID 0114" : "Not detected"}
+              value={st?.deviceFound ? `USB · VID 2222 · PID 0114 · ${store.layout.keys.length} keys` : "Not detected"}
             />
             <StatusRow
               ok={!IS_WINDOWS && !!st?.hookRunning}

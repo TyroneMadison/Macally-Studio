@@ -69,11 +69,12 @@ Download from the [latest release](https://github.com/TyroneMadison/Macally-Stud
    ```sh
    xattr -cr "/Applications/Macally Studio.app"
    ```
-5. Allow **Accessibility** and **Input Monitoring** when asked. The app waits on a permissions screen until both are on. It starts with the **macOS Default** profile, which leaves every key as it is.
+5. Allow **Accessibility** and **Input Monitoring** when asked. Remapping starts by itself a few seconds after both are on; until then **Settings → Permissions and device** shows "Needed". The app starts with the **macOS Default** profile, which leaves every key as it is.
 
 ## Known limits
 
 - **fn and the backlight keys** (F5 and F6 by default) are handled inside the keyboard itself and never reach the computer, so no app can remap them.
+- **Fn-Lock for Windows Default.** Its top-row bindings expect Fn-Lock on: press fn+esc once so the top row sends F1–F15. With Fn-Lock off, F3, F4 and F13–F15 send the keyboard's own macros and the profile seems to do nothing. F7–F12 are bound to media and volume so they keep their printed functions with Fn-Lock on.
 - **Admin windows on Windows.** Windows does not let a normal app send keys to an app running as administrator. Turn on **Run as administrator** in Settings if you need that.
 - **Some games** read the keyboard directly (raw input) and see the physical key, not the remapped one.
 - **All keyboards.** Bindings apply to every connected keyboard for now.
