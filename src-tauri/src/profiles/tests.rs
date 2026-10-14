@@ -1,0 +1,148 @@
+use super::*;
+use crate::actions::{Action, AppRef};
+use serde_json::json;
+
+fn profile(id: &str) -> Profile {
+    let binding = Binding {
+        mods: vec![Modifier::Shift],
+        action: Action::LaunchApp { app: AppRef::Bundle { id: "com.apple.calculator".into() } },
+    };
+    Profile {
+        schema: 1,
+        id: id.into(),
+        name: "Photo editing".into(),
+        builtin: false,
+        hotkey: Some("Ctrl+Alt+2".into()),
+        auto_apps: vec!["Photoshop.exe".into()],
+        bindings: BTreeMap::from([("F13".to_string(), binding)]),
+    }
+}
+
+#[test]
+fn profile_json_is_camel_case() {
+    let v = serde_json::to_value(profile("photo")).unwrap();
+    assert_eq!(v["autoApps"], json!(["Photoshop.exe"]));
+    assert_eq!(v["hotkey"], "Ctrl+Alt+2");
+    assert_eq!(v["bindings"]["F13"]["mods"], json!(["Shift"]));
+    assert_eq!(v["bindings"]["F13"]["action"]["type"], "launch_app");
+}
+
+#[test]
+fn modifiers_serialize_as_variant_names() {
+    let mods = [Modifier::Ctrl, Modifier::Alt, Modifier::Shift, Modifier::Meta];
+    assert_eq!(serde_json::to_value(mods).unwrap(), json!(["Ctrl", "Alt", "Shift", "Meta"]));
+}
+
+#[test]
+fn settings_defaults_match_spec() {
+    let s = Settings::default();
+    let v = serde_json::to_value(&s).unwrap();
+    assert_eq!(v["schema"], 1);
+    assert_eq!(v["activeProfile"], default_profile_id());
+    assert_eq!(v["switchMode"], "auto");
+    assert_eq!(
+        v["hotkeys"],
+        json!({ "pause": "Ctrl+Alt+P", "nextProfile": "Ctrl+Alt+]", "prevProfile": "Ctrl+Alt+[", "show": "Ctrl+Alt+M" })
+    );
+    assert!(s.start_at_login && s.close_to_tray && s.windows_legends && s.auto_check_updates);
+    assert!(!s.run_as_admin);
+}
+
+#[test]
+fn partial_settings_fill_in_defaults() {
+    let s: Settings = serde_json::from_str(r#"{ "switchMode": "manual" }"#).unwrap();
+    assert_eq!(s.switch_mode, SwitchMode::Manual);
+    assert_eq!(s.hotkeys.pause, "Ctrl+Alt+P");
+    assert!(s.close_to_tray);
+}
+
+#[test]
+fn slug_rules() {
+    assert_eq!(slug("Photo Editing!"), "photo-editing");
+    assert_eq!(slug("../Evil  Name"), "evil-name");
+    assert_eq!(slug("windows-default"), "windows-default");
+    assert_eq!(slug("--"), "profile");
+}
+
+#[test]
+fn save_get_list_delete() {
+    let st = temp_store("crud");
+    st.save_profile(&profile("photo")).unwrap();
+    assert_eq!(st.get_profile("photo").unwrap(), profile("photo"));
+    assert_eq!(st.list_profiles().unwrap(), vec![profile("photo")]);
+    st.delete_profile("photo").unwrap();
+    assert!(st.get_profile("photo").is_err());
+}
+
+#[test]
+fn rejects_path_like_ids() {
+    let st = temp_store("ids");
+    assert!(st.get_profile("../settings").is_err());
+    assert!(st.delete_profile("..\\settings").is_err());
+    assert!(st.save_profile(&profile("a/b")).is_err());
+    assert!(st.save_profile(&profile("")).is_err());
+}
+
+#[test]
+fn builtins_are_read_only() {
+    let st = temp_store("ro");
+    let mut p = profile("windows-default");
+    p.builtin = true;
+    st.write(&p).unwrap();
+    assert!(st.save_profile(&p).is_err());
+    assert!(st.save_profile(&profile("windows-default")).is_err());
+    assert!(st.delete_profile("windows-default").is_err());
+}
+
+#[test]
+fn duplicate_appends_copy_and_counts_up() {
+    let st = temp_store("dup");
+    st.save_profile(&profile("photo")).unwrap();
+    let a = st.duplicate_profile("photo").unwrap();
+    let b = st.duplicate_profile("photo").unwrap();
+    assert_eq!((a.id.as_str(), b.id.as_str()), ("photo-copy", "photo-copy-2"));
+    assert_eq!(a.name, "Photo editing copy");
+    assert_eq!(a.hotkey, None);
+    assert_eq!(a.bindings, profile("photo").bindings);
+    assert_eq!(st.list_profiles().unwrap().len(), 3);
+}
+
+#[test]
+fn export_then_import_gets_a_new_id() {
+    let st = temp_store("io");
+    st.save_profile(&profile("photo")).unwrap();
+    let file = st.data_dir.join("exported.json");
+    st.export_profile("photo", &file).unwrap();
+    let imported = st.import_profile(&file).unwrap();
+    assert_eq!(imported.id, "photo-2");
+    assert_eq!(imported.bindings, profile("photo").bindings);
+    assert_eq!(st.get_profile("photo-2").unwrap(), imported);
+}
+
+#[test]
+fn import_sanitizes_id_and_clears_builtin() {
+    let st = temp_store("import");
+    let file = st.data_dir.join("in.json");
+    fs::write(&file, r#"{ "schema": 1, "id": "../Evil Name", "name": "X", "builtin": true }"#).unwrap();
+    let p = st.import_profile(&file).unwrap();
+    assert_eq!(p.id, "evil-name");
+    assert!(!p.builtin);
+    assert!(p.bindings.is_empty());
+}
+
+#[test]
+fn newer_schema_is_refused() {
+    let st = temp_store("schema");
+    let file = st.data_dir.join("new.json");
+    fs::write(&file, r#"{ "schema": 2, "id": "x", "name": "X" }"#).unwrap();
+    assert!(st.import_profile(&file).is_err());
+}
+
+#[test]
+fn settings_round_trip_and_default_when_missing() {
+    let st = temp_store("settings");
+    assert_eq!(st.load_settings(), Settings::default());
+    let s = Settings { switch_mode: SwitchMode::Hotkey, close_to_tray: false, ..Settings::default() };
+    st.save_settings(&s).unwrap();
+    assert_eq!(st.load_settings(), s);
+}

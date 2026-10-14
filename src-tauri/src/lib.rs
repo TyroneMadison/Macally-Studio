@@ -1,6 +1,7 @@
 pub mod actions;
 pub mod commands;
 pub mod keymap;
+pub mod profiles;
 pub mod version;
 
 use tauri::Manager;
