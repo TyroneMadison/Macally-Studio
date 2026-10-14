@@ -116,6 +116,7 @@ fn export_then_import_gets_a_new_id() {
     let imported = st.import_profile(&file).unwrap();
     assert_eq!(imported.id, "photo-2");
     assert_eq!(imported.bindings, profile("photo").bindings);
+    assert_eq!(imported.hotkey, None); // "photo" already uses Ctrl+Alt+2
     assert_eq!(st.get_profile("photo-2").unwrap(), imported);
 }
 
@@ -145,6 +146,18 @@ fn settings_round_trip_and_default_when_missing() {
     let s = Settings { switch_mode: SwitchMode::Hotkey, close_to_tray: false, ..Settings::default() };
     st.save_settings(&s).unwrap();
     assert_eq!(st.load_settings(), s);
+}
+
+#[test]
+fn unreadable_settings_are_backed_up_not_lost() {
+    let st = temp_store("settings-bak");
+    let path = st.data_dir.join("settings.json");
+    for text in ["{ not json", r#"{ "schema": 2 }"#] {
+        fs::write(&path, text).unwrap();
+        assert_eq!(st.load_settings(), Settings::default());
+        assert!(!path.exists());
+        assert_eq!(fs::read_to_string(st.data_dir.join("settings.json.bak")).unwrap(), text);
+    }
 }
 
 #[test]

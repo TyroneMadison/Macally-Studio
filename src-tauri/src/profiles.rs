@@ -220,6 +220,9 @@ impl Store {
         let mut p = read_profile(path)?;
         p.builtin = false;
         p.id = self.free_id(&slug(&p.id));
+        if p.hotkey.is_some() && self.list_profiles()?.iter().any(|o| o.hotkey == p.hotkey) {
+            p.hotkey = None; // two profiles cannot share a hotkey
+        }
         self.write(&p)?;
         Ok(p)
     }
@@ -240,11 +243,18 @@ impl Store {
         Ok(())
     }
 
+    /// A file we cannot read back (typo, newer schema) moves to settings.json.bak
+    /// so saving the defaults does not destroy it.
     pub fn load_settings(&self) -> Settings {
-        fs::read_to_string(self.data_dir.join("settings.json"))
-            .ok()
-            .and_then(|t| serde_json::from_str(&t).ok())
-            .unwrap_or_default()
+        let path = self.data_dir.join("settings.json");
+        let Ok(text) = fs::read_to_string(&path) else { return Settings::default() };
+        match serde_json::from_str::<Settings>(&text) {
+            Ok(s) if s.schema <= SCHEMA => s,
+            _ => {
+                let _ = fs::rename(&path, path.with_extension("json.bak"));
+                Settings::default()
+            }
+        }
     }
 
     pub fn save_settings(&self, s: &Settings) -> anyhow::Result<()> {
