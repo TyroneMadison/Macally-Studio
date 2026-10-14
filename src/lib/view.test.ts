@@ -5,9 +5,9 @@ import { cameraPos, clampView, DEFAULT_VIEW, fitDistance, flipYaw, FOV, PITCH_MA
 const PI = Math.PI;
 
 describe("3D view helpers", () => {
-  it("wraps yaw a full turn, clamps tilt above the horizon and zoom to 100-150%", () => {
+  it("wraps yaw a full turn, clamps tilt above the horizon and zoom to 100-250%", () => {
     expect(clampView({ yaw: 0.3, pitch: 0.9, zoom: 1.2 })).toEqual({ yaw: 0.3, pitch: 0.9, zoom: 1.2 });
-    expect(clampView({ yaw: 0, pitch: 0, zoom: 2 })).toEqual({ yaw: 0, pitch: PITCH_MIN, zoom: 1.5 });
+    expect(clampView({ yaw: 0, pitch: 0, zoom: 3 })).toEqual({ yaw: 0, pitch: PITCH_MIN, zoom: 2.5 });
     expect(clampView({ yaw: 0, pitch: PI / 2, zoom: 0.5 })).toEqual({ yaw: 0, pitch: PITCH_MAX, zoom: 1 });
     expect(clampView({ yaw: 2 * PI + 0.3, pitch: 1, zoom: 1 }).yaw).toBeCloseTo(0.3);
     expect(clampView({ yaw: -2 * PI - 0.3, pitch: 1, zoom: 1 }).yaw).toBeCloseTo(-0.3);

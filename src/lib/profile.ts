@@ -1,10 +1,19 @@
 import { formatChord } from "./actions";
-import type { Action, AppEntry, Profile } from "./types";
+import type { Action, AppEntry, Binding, Profile } from "./types";
 
 /** `base`, else `base-2`, `base-3`, ... (same rule as Store::free_id in Rust). */
 export function uniqueId(base: string, taken: string[]): string {
   if (!taken.includes(base)) return base;
   for (let n = 2; ; n++) if (!taken.includes(`${base}-${n}`)) return `${base}-${n}`;
+}
+
+/** `p` with key `code` rebound to what `update` makes of its current binding (null unbinds it). */
+export function withBinding(p: Profile, code: string, update: (old?: Binding) => Binding | null): Profile {
+  const bindings = { ...p.bindings };
+  const b = update(bindings[code]);
+  if (b) bindings[code] = b;
+  else delete bindings[code];
+  return { ...p, bindings };
 }
 
 export function newProfile(existing: Profile[]): Profile {

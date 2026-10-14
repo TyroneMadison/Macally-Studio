@@ -257,4 +257,19 @@ mod tests {
         rust.sort();
         assert_eq!(mirrored, rust);
     }
+
+    #[test]
+    fn actions_ts_hides_exactly_the_unsendable_keys() {
+        #[cfg(target_os = "macos")]
+        use crate::engine::macos::can_send;
+        #[cfg(target_os = "windows")]
+        use crate::engine::windows::can_send;
+        let ts = include_str!("../../src/lib/actions.ts");
+        let line = ts.lines().find(|l| l.starts_with("const UNSENDABLE")).expect("UNSENDABLE in actions.ts");
+        let (mac, win) = line.split_once(" : ").expect("isMac ? [mac] : [windows]");
+        let list = if cfg!(target_os = "macos") { mac } else { win };
+        let hidden: Vec<&str> = list.split('"').skip(1).step_by(2).collect();
+        let unsendable: Vec<&str> = KEYS.iter().map(|d| d.code).filter(|c| !can_send(c)).collect();
+        assert_eq!(hidden, unsendable);
+    }
 }

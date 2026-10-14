@@ -40,7 +40,7 @@ const render = (keyCode: string | null, profile: Profile = mine) =>
       keyCode={keyCode}
       layout={layout}
       profile={profile}
-      onChange={async () => {}}
+      saveBinding={async () => {}}
       catalog={[calc]}
       profiles={[profile]}
       lastKey={null}

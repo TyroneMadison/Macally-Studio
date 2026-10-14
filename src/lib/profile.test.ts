@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { actionLabel, initials, newProfile, ruleFor, uniqueId } from "./profile";
-import type { AppEntry } from "./types";
+import { actionLabel, initials, newProfile, ruleFor, uniqueId, withBinding } from "./profile";
+import type { AppEntry, Binding } from "./types";
 
 const app = (kind: AppEntry["kind"], launch: string, name = "App"): AppEntry => ({
   id: launch,
@@ -21,6 +21,16 @@ describe("profile helpers", () => {
     const first = newProfile([]);
     expect(first).toMatchObject({ id: "new-profile", builtin: false, hotkey: null, autoApps: [], bindings: {} });
     expect(newProfile([first]).id).toBe("new-profile-2");
+  });
+
+  it("withBinding rebinds one key from its current binding and unbinds on null", () => {
+    const q: Binding = { mods: ["Shift"], action: { type: "key_combo", keys: ["KeyQ"] } };
+    const p = { ...newProfile([]), bindings: { F13: q, F14: q } };
+    const tab = withBinding(p, "F13", (old) => ({ mods: old?.mods ?? [], action: { type: "key_combo", keys: ["Tab"] } }));
+    expect(tab.bindings).toEqual({ F13: { mods: ["Shift"], action: { type: "key_combo", keys: ["Tab"] } }, F14: q });
+    expect(withBinding(p, "F15", (old) => old ?? null).bindings).toEqual(p.bindings);
+    expect(withBinding(p, "F14", () => null).bindings).toEqual({ F13: q });
+    expect(p.bindings).toEqual({ F13: q, F14: q }); // the input is left alone
   });
 
   it("initials", () => {

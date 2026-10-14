@@ -87,10 +87,11 @@ describe("chordRecorder", () => {
 });
 
 describe("key list", () => {
-  it("lists every sendable key exactly once", () => {
+  it("lists every key Windows can send exactly once", () => {
+    const unsendable = ["Fn", "Eject", "BrightnessDown", "BrightnessUp"]; // tests run as Windows (isMac false)
     const listed = KEY_GROUPS.flatMap((g) => g.codes);
-    expect(listed).toHaveLength(KEY_CODES.length);
-    expect(new Set(listed)).toEqual(new Set(KEY_CODES));
+    expect(listed).toHaveLength(KEY_CODES.length - unsendable.length);
+    expect(new Set(listed)).toEqual(new Set(KEY_CODES.filter((c) => !unsendable.includes(c))));
   });
 
   it("groups and labels keys the way people look for them", () => {
@@ -100,7 +101,7 @@ describe("key list", () => {
     ]);
     expect(KEY_GROUPS[0].codes.slice(0, 3)).toEqual(["KeyA", "KeyB", "KeyC"]);
     expect(KEY_GROUPS[2].codes).toHaveLength(15);
-    expect(["ShiftRight", "Fn", "Escape", "ArrowUp", "NumLock", "AudioVolumeUp", "Semicolon"].map(group)).toEqual([
+    expect(["ShiftRight", "AltRight", "Escape", "ArrowUp", "NumLock", "AudioVolumeUp", "Semicolon"].map(group)).toEqual([
       "Modifiers", "Modifiers", "Navigation & editing", "Navigation & editing", "Numpad", "Media & volume", "Symbols",
     ]);
     expect(keyLabel("ControlRight", false)).toBe("Right Ctrl");

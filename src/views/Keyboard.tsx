@@ -6,7 +6,7 @@ import { setMonitor } from "../lib/ipc";
 import { BACKLIGHT_LEVELS, loadLighting, saveLighting } from "../lib/lighting";
 import { useRecord } from "../lib/record";
 import type { AppState } from "../lib/state";
-import { clampView, DEFAULT_VIEW, flipYaw, PITCH_MAX, PITCH_MIN, type View3D } from "../lib/view";
+import { clampView, DEFAULT_VIEW, flipYaw, PITCH_MAX, PITCH_MIN, ZOOM_MAX, type View3D } from "../lib/view";
 
 const DEG = 180 / Math.PI;
 
@@ -134,7 +134,7 @@ export default function Keyboard({ store }: { store: AppState }) {
             <Slider
               label="Zoom"
               min={100}
-              max={150}
+              max={ZOOM_MAX * 100}
               unit="%"
               value={Math.round(view.zoom * 100)}
               onChange={(p) => setPart({ zoom: p / 100 })}
@@ -182,7 +182,7 @@ export default function Keyboard({ store }: { store: AppState }) {
             keyCode={selected}
             layout={store.layout}
             profile={profile}
-            onChange={store.saveProfile}
+            saveBinding={store.saveBinding}
             catalog={store.catalog}
             profiles={store.profiles}
             lastKey={store.lastKey}

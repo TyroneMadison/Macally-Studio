@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import ActionPicker from "./ActionPicker";
 import KeyMonitor from "./KeyMonitor";
 import { chordRecorder, describeAction, formatChord, isMac, KEY_GROUPS, keyLabel } from "../lib/actions";
-import { KEY_CODES } from "../lib/keycodes";
 import { useRecord } from "../lib/record";
+import type { AppState } from "../lib/state";
 import type { AppEntry, Binding, KeyEvent, Layout, Modifier, Profile } from "../lib/types";
 
 export type InspectorProps = {
   keyCode: string | null;
   layout: Layout;
   profile: Profile;
-  onChange: (p: Profile) => Promise<void>;
+  saveBinding: AppState["saveBinding"];
   catalog: AppEntry[];
   profiles: Profile[];
   lastKey: KeyEvent | null;
@@ -43,8 +43,8 @@ export default function Inspector(props: InspectorProps) {
   );
 }
 
-/** Every change saves at once through `onChange`. */
-function KeyEditor({ keyCode, layout, profile, onChange, catalog, profiles }: InspectorProps & { keyCode: string }) {
+/** Every change saves at once through `saveBinding`. */
+function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles }: InspectorProps & { keyCode: string }) {
   const binding: Binding | undefined = profile.bindings[keyCode];
   const mods = binding?.mods ?? [];
   const [recording, setRecording] = useState(false);
@@ -54,19 +54,18 @@ function KeyEditor({ keyCode, layout, profile, onChange, catalog, profiles }: In
   const key = layout.keys.find((k) => k.code === keyCode);
   const summary = describeAction(binding?.action, catalog, profiles);
   const sends = binding?.action.type === "key_combo" ? binding.action.keys : [];
-  const listed = sends.length === 1 && KEY_CODES.includes(sends[0]) ? sends[0] : "";
+  const listed = sends.length === 1 && KEY_GROUPS.some((g) => g.codes.includes(sends[0])) ? sends[0] : "";
 
-  function commit(b: Binding | null) {
-    const bindings = { ...profile.bindings };
-    if (b) bindings[keyCode] = b;
-    else delete bindings[keyCode];
+  /** Built from the latest saved binding, not this render's, so quick edits cannot undo each other. */
+  function commit(update: (old?: Binding) => Binding | null) {
+    setRecording(false); // any other edit ends a recording, so it can never save over that edit
     setError(null);
-    onChange({ ...profile, bindings }).then(
+    saveBinding(profile.id, keyCode, update).then(
       () => setSavedAt(Date.now()),
       (e) => setError(String(e)),
     );
   }
-  const send = (keys: string[]) => commit({ mods, action: { type: "key_combo", keys } });
+  const send = (keys: string[]) => commit((old) => ({ mods: old?.mods ?? [], action: { type: "key_combo", keys } }));
 
   useRecord(
     recording,
@@ -149,7 +148,7 @@ function KeyEditor({ keyCode, layout, profile, onChange, catalog, profiles }: In
           disabled={!binding}
           onChange={(e) => {
             const m = e.target.value as Modifier | "";
-            if (binding) commit({ mods: m ? [m] : [], action: binding.action });
+            commit((old) => (old ? { mods: m ? [m] : [], action: old.action } : null));
           }}
         >
           {HELD.map((h) => (
@@ -161,10 +160,17 @@ function KeyEditor({ keyCode, layout, profile, onChange, catalog, profiles }: In
       </div>
 
       <div className="insp-actions">
-        <button type="button" className="btn" onClick={() => setPicking(true)}>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            setRecording(false);
+            setPicking(true);
+          }}
+        >
           More actions…
         </button>
-        <button type="button" className="btn" disabled={!binding} onClick={() => commit(null)}>
+        <button type="button" className="btn" disabled={!binding} onClick={() => commit(() => null)}>
           Reset key
         </button>
       </div>
@@ -181,7 +187,7 @@ function KeyEditor({ keyCode, layout, profile, onChange, catalog, profiles }: In
         profiles={profiles}
         onPick={(a) => {
           setPicking(false);
-          commit({ mods, action: a });
+          commit((old) => ({ mods: old?.mods ?? [], action: a }));
         }}
         onClose={() => setPicking(false)}
       />

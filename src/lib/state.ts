@@ -2,7 +2,8 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as ipc from "./ipc";
 import layoutJson from "./layout.json";
-import type { AppEntry, KeyEvent, Layout, Profile, Settings, Status, UpdateInfo } from "./types";
+import { withBinding } from "./profile";
+import type { AppEntry, Binding, KeyEvent, Layout, Profile, Settings, Status, UpdateInfo } from "./types";
 
 const layout: Layout = layoutJson;
 
@@ -19,6 +20,8 @@ export type AppState = {
   setActiveProfile(id: string): Promise<void>;
   /** Merges `patch` onto the saved profile with that id (a new id saves `patch` as is). */
   saveProfile(patch: Pick<Profile, "id"> & Partial<Profile>): Promise<void>;
+  /** Rebinds one key of a saved profile from its latest saved binding (null from `update` unbinds it). */
+  saveBinding(id: string, code: string, update: (old?: Binding) => Binding | null): Promise<void>;
   /** Merges `patch` onto the saved settings. */
   saveSettings(patch: Partial<Settings>): Promise<void>;
   setPaused(b: boolean): Promise<void>;
@@ -109,6 +112,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setActiveProfile: (id) => thenRefresh(ipc.setActiveProfile(id)),
       saveProfile: (patch) =>
         queued((d) => ipc.saveProfile({ ...d.profiles.find((p) => p.id === patch.id), ...patch } as Profile)),
+      saveBinding: (id, code, update) =>
+        queued((d) => ipc.saveProfile(withBinding(d.profiles.find((p) => p.id === id)!, code, update))),
       saveSettings: (patch) => queued((d) => ipc.saveSettings({ ...d.settings, ...patch })),
       setPaused: (b) => thenRefresh(ipc.setPaused(b)),
     };

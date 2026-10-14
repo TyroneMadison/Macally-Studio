@@ -104,11 +104,14 @@ function groupOf(code: string): string {
   return SYMBOLS[code] ? "Symbols" : "Navigation & editing";
 }
 
-/** Every key the engine can send, grouped for the Inspector's "Remap to" list. */
+/** Keys this OS cannot send (engine can_send is false); keymap.rs checks this line. */
+const UNSENDABLE = isMac ? ["LaunchApp1", "PrintScreen", "ScrollLock", "Pause"] : ["Fn", "Eject", "BrightnessDown", "BrightnessUp"];
+
+/** Every key the engine can send on this OS, grouped for the Inspector's "Remap to" list. */
 export const KEY_GROUPS = [
   "Letters", "Numbers", "Function keys", "Modifiers", "Navigation & editing", "Numpad", "Media & volume", "Symbols",
 ].map((label) => {
-  const codes = KEY_CODES.filter((c) => groupOf(c) === label);
+  const codes = KEY_CODES.filter((c) => groupOf(c) === label && !UNSENDABLE.includes(c));
   return { label, codes: label === "Letters" ? codes.sort() : codes }; // A-Z, not QWERTY order
 });
 
