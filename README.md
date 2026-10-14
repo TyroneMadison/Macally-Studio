@@ -57,7 +57,7 @@ Download from the [latest release](https://github.com/TyroneMadison/Macally-Stud
 
 1. Download the file ending in `_x64-setup.exe` (the `.msi` works too).
 2. Run it. The installer is not code-signed yet, so SmartScreen may say "Windows protected your PC": click **More info**, then **Run anyway**.
-3. Macally Studio opens with the **Windows Default** profile: command works as Ctrl, option as Alt, F13 takes a screenshot, F14 opens Calculator and F15 opens Clock.
+3. Press **fn + esc** once on the keyboard (Fn-Lock) so the top row sends F1–F15. Macally Studio opens with the **Windows Default** profile: command works as Ctrl, option as Alt, F3 opens Task View, F4 the Start menu, F7–F12 control media and volume, F13 takes a screenshot, F14 opens Calculator and F15 opens Clock.
 4. Want remaps inside apps that run as administrator? Turn on **Settings → Run as administrator**.
 
 ### macOS
