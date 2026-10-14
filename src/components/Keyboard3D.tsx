@@ -24,6 +24,7 @@ const FN_GAP = 0.15; // the real board leaves a little air under the F row
 const POLAR = 0.9; // locked tilt from straight down (~52 deg), the product-shot angle
 const FOV = 32;
 const GAP = 0.1; // space between neighbouring caps
+const LIFT = 0.08; // caps float a little so the backlight shows between them
 
 type Controls = ComponentRef<typeof OrbitControls>;
 
@@ -42,7 +43,7 @@ function measure(keys: LayoutKey[]) {
 
 /** Camera distance at which the plate spans the canvas width at 100% zoom. */
 function fitDistance(halfSpan: number, aspect: number) {
-  return (halfSpan / (Math.tan((FOV / 2) * (Math.PI / 180)) * aspect)) * 1.1;
+  return (halfSpan / (Math.tan((FOV / 2) * (Math.PI / 180)) * aspect)) * 1.15;
 }
 
 function cameraPos(yaw: number, zoom: number, fit: number): [number, number, number] {
@@ -73,27 +74,30 @@ function Key({ k, legend, width, depth, bound, selected, onSelect }: KeyProps) {
   const fontSize = short ? (k.h < 1 ? 0.2 : 0.3) : k.h < 1 ? 0.12 : 0.15;
   return (
     <group position={[k.x + k.w / 2 - width / 2, PLATE_T / 2 + KEY_H / 2, rowTop(k.row) + k.h / 2 - depth / 2]}>
+      {/* backlight bleeding around the cap, like the real board's white LEDs: bright when bound */}
+      <RoundedBox args={[k.w - 0.01, 0.02, k.h - 0.01]} radius={0.04} smoothness={2} position={[0, -KEY_H / 2 + 0.01, 0]}>
+        <meshBasicMaterial color={bound ? "#FFFFFF" : "#2E2E33"} toneMapped={false} />
+      </RoundedBox>
       <RoundedBox
         args={cap}
         radius={0.06}
         smoothness={4}
+        position={[0, LIFT, 0]}
         onClick={onClick}
         onPointerOver={() => (document.body.style.cursor = "pointer")}
         onPointerOut={() => (document.body.style.cursor = "")}
       >
-        {/* LED: bound keys glow white, selected key tints blue. Spec asks 1 : 0.15, but a fully
-            emissive white cap hides its white legend, so the legend carries the light. */}
         <meshStandardMaterial
           color={selected ? "#1E2A44" : "#151517"}
           metalness={0.1}
           roughness={0.6}
-          emissive={selected ? "#4C8DFF" : "#FFFFFF"}
-          emissiveIntensity={selected ? 0.35 : bound ? 0.22 : 0.02}
+          emissive="#4C8DFF"
+          emissiveIntensity={selected ? 0.35 : 0}
         />
       </RoundedBox>
       {selected && (
         // blue outline: a slightly larger shell that only draws its back faces
-        <RoundedBox args={[k.w - GAP + 0.08, KEY_H + 0.04, k.h - GAP + 0.08]} radius={0.08} smoothness={4}>
+        <RoundedBox args={[k.w - GAP + 0.08, KEY_H + 0.04, k.h - GAP + 0.08]} radius={0.08} smoothness={4} position={[0, LIFT, 0]}>
           <meshBasicMaterial color="#4C8DFF" side={BackSide} />
         </RoundedBox>
       )}
@@ -104,11 +108,15 @@ function Key({ k, legend, width, depth, bound, selected, onSelect }: KeyProps) {
             fontSize={fontSize}
             maxWidth={k.w - 0.2}
             textAlign="center"
-            color={bound || selected ? "#FFFFFF" : "#C9C9CF"}
+            color={bound || selected ? "#FFFFFF" : "#8A8A93"}
+            outlineWidth={bound ? "12%" : 0}
+            outlineBlur={bound ? "40%" : 0}
+            outlineColor="#FFFFFF"
+            outlineOpacity={0.55}
             anchorX="center"
             anchorY="middle"
             depthOffset={-1}
-            position={[0, KEY_H / 2 + 0.003, 0]}
+            position={[0, LIFT + KEY_H / 2 + 0.003, 0]}
             rotation={[-Math.PI / 2, 0, 0]}
           >
             {legend}
