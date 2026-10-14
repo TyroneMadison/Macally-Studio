@@ -3,15 +3,42 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import Inspector from "../components/Inspector";
 import Keyboard3D from "../components/Keyboard3D";
 import { setMonitor } from "../lib/ipc";
+import { BACKLIGHT_LEVELS, loadLighting, saveLighting } from "../lib/lighting";
 import type { AppState } from "../lib/state";
-import { clampView, DEFAULT_VIEW, flipYaw, type View3D } from "../lib/view";
+import { clampView, DEFAULT_VIEW, flipYaw, PITCH_MAX, PITCH_MIN, type View3D } from "../lib/view";
 
 const DEG = 180 / Math.PI;
+
+type SliderProps = { label: string; min: number; max: number; unit: string; value: number; onChange: (v: number) => void };
+
+function Slider({ label, min, max, unit, value, onChange }: SliderProps) {
+  return (
+    <label>
+      {label}
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={1}
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+      <span className="mono">
+        {value}
+        {unit}
+      </span>
+    </label>
+  );
+}
 
 export default function Keyboard({ store }: { store: AppState }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [view, setView] = useState<View3D>(DEFAULT_VIEW);
   const onViewChange = useCallback((v: View3D) => setView(clampView(v)), []);
+  const setPart = (p: Partial<View3D>) => setView((v) => clampView({ ...v, ...p }));
+  const [lighting, setLighting] = useState(loadLighting);
+  useEffect(() => saveLighting(lighting), [lighting]);
   const profile = store.activeProfile;
   const boundCodes = useMemo(() => new Set(Object.keys(profile?.bindings ?? {})), [profile]);
   const legends: "mac" | "win" = store.settings.windowsLegends ? "win" : "mac";
@@ -58,45 +85,75 @@ export default function Keyboard({ store }: { store: AppState }) {
               onSelect={setSelected}
               legends={legends}
               yaw={view.yaw}
+              pitch={view.pitch}
               zoom={view.zoom}
+              lighting={lighting}
               onViewChange={onViewChange}
             />
             <div className="kb-hint">Right-drag to rotate · Scroll to zoom</div>
           </div>
           <div className="kb-bar">
-            <label>
-              Rotate
-              <input
-                type="range"
-                min={-90}
-                max={90}
-                step={1}
-                aria-label="Rotate keyboard"
-                value={Math.round(view.yaw * DEG)}
-                onChange={(e) => setView((v) => clampView({ ...v, yaw: Number(e.target.value) / DEG }))}
-              />
-              <span className="mono">{Math.round(view.yaw * DEG)}°</span>
-            </label>
-            <label>
-              Zoom
-              <input
-                type="range"
-                min={100}
-                max={150}
-                step={1}
-                aria-label="Zoom keyboard"
-                value={Math.round(view.zoom * 100)}
-                onChange={(e) => setView((v) => clampView({ ...v, zoom: Number(e.target.value) / 100 }))}
-              />
-              <span className="mono">{Math.round(view.zoom * 100)}%</span>
-            </label>
-            <div className="kb-spacer" />
-            <button type="button" className="btn" onClick={() => setView((v) => ({ ...v, yaw: flipYaw(v.yaw) }))}>
-              Flip 180°
-            </button>
-            <button type="button" className="btn" onClick={() => setView(DEFAULT_VIEW)}>
-              Reset view
-            </button>
+            <Slider
+              label="Rotate"
+              min={-180}
+              max={180}
+              unit="°"
+              value={Math.round(view.yaw * DEG)}
+              onChange={(d) => setPart({ yaw: d / DEG })}
+            />
+            {/* tilt reads as the camera's height above the desk: 85° is almost straight down */}
+            <Slider
+              label="Tilt"
+              min={Math.round(90 - PITCH_MAX * DEG)}
+              max={Math.round(90 - PITCH_MIN * DEG)}
+              unit="°"
+              value={Math.round(90 - view.pitch * DEG)}
+              onChange={(d) => setPart({ pitch: (90 - d) / DEG })}
+            />
+            <Slider
+              label="Zoom"
+              min={100}
+              max={150}
+              unit="%"
+              value={Math.round(view.zoom * 100)}
+              onChange={(p) => setPart({ zoom: p / 100 })}
+            />
+            <div className="kb-actions">
+              <button type="button" className="btn" onClick={() => setPart({ yaw: flipYaw(view.yaw) })}>
+                Flip 180°
+              </button>
+              <button type="button" className="btn" onClick={() => setView(DEFAULT_VIEW)}>
+                Reset view
+              </button>
+              <details className="kb-pop">
+                <summary className="btn">Lighting</summary>
+                <div className="kb-pop-body">
+                  <Slider
+                    label="Brightness"
+                    min={50}
+                    max={200}
+                    unit="%"
+                    value={Math.round(lighting.brightness * 100)}
+                    onChange={(p) => setLighting((l) => ({ ...l, brightness: p / 100 }))}
+                  />
+                  <div className="kb-pop-row">
+                    Backlight
+                    <div className="seg" role="group" aria-label="Backlight">
+                      {BACKLIGHT_LEVELS.map((name, i) => (
+                        <button
+                          key={name}
+                          type="button"
+                          aria-pressed={lighting.backlight === i}
+                          onClick={() => setLighting((l) => ({ ...l, backlight: i }))}
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
           </div>
         </div>
         {profile ? (

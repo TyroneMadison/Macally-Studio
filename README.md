@@ -32,7 +32,7 @@ Remap keys, launch apps and Steam games, and switch profiles automatically, on W
   <tr>
     <td valign="top"><b>Steam games</b><br>Your whole Steam library, found automatically. One key, one game.</td>
     <td valign="top"><b>Open and run</b><br>Bind a website, file, folder or command line. Commands can run hidden.</td>
-    <td valign="top"><b>3D keyboard</b><br>A to-scale model of the keyboard. Click a key to bind it, turn it through 180°, zoom to 150 %. Bound keys glow; Mac or Windows legends.</td>
+    <td valign="top"><b>3D keyboard</b><br>A to-scale model of the keyboard. Click a key to bind it, spin it a full 360°, tilt it, zoom to 150 %. Bound keys glow; adjustable brightness and backlight; Mac or Windows legends.</td>
   </tr>
   <tr>
     <td valign="top"><b>Key Monitor and Record</b><br>See exactly what the system reports for any key, and capture a chord by pressing it.</td>

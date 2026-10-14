@@ -1,10 +1,22 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
-import { OrbitControls, RoundedBox, Text } from "@react-three/drei";
-import { BackSide, MOUSE } from "three";
+import { Environment, Lightformer, OrbitControls, RoundedBox, Text } from "@react-three/drei";
+import { BackSide, MeshBasicMaterial, MOUSE } from "three";
 import fontUrl from "../assets/fonts/JetBrainsMono-Variable.ttf";
+import type { Lighting } from "../lib/lighting";
 import type { Layout, LayoutKey } from "../lib/types";
-import { clampView, YAW_LIMIT, ZOOM_MAX, ZOOM_MIN } from "../lib/view";
+import {
+  cameraPos,
+  clampView,
+  fitDistance,
+  FOV,
+  PITCH_MAX,
+  PITCH_MIN,
+  wrapAngle,
+  ZOOM_MAX,
+  ZOOM_MIN,
+  type View3D,
+} from "../lib/view";
 
 export type Keyboard3DProps = {
   layout: Layout;
@@ -12,19 +24,24 @@ export type Keyboard3DProps = {
   selected: string | null;
   onSelect: (code: string) => void;
   legends: "mac" | "win";
-  yaw: number; // radians, -PI/2..PI/2
+  yaw: number; // radians, a full turn
+  pitch: number; // radians from straight down, PITCH_MIN..PITCH_MAX
   zoom: number; // 1..1.5
-  onViewChange: (v: { yaw: number; zoom: number }) => void;
+  lighting: Lighting;
+  onViewChange: (v: View3D) => void;
 };
 
 const KEY_H = 0.3; // keycap height, world units (1 world unit = 1u)
 const PLATE_T = 0.25;
 const PLATE_MARGIN = 0.5;
 const FN_GAP = 0.15; // the real board leaves a little air under the F row
-const POLAR = 0.9; // locked tilt from straight down (~52 deg), the product-shot angle
-const FOV = 32;
 const GAP = 0.1; // space between neighbouring caps
 const LIFT = 0.08; // caps float a little so the backlight shows between them
+// per backlight level (Off, Low, Med, High): LED bleed under bound caps and the glow around their legends
+const BLEED = ["#2E2E33", "#77777D", "#B9B9BD", "#FFFFFF"];
+const GLOW = [0, 0.3, 0.45, 0.6];
+// legends skip tone mapping so white prints read as white, not filmic gray (troika derives one per text)
+const LEGEND = new MeshBasicMaterial({ toneMapped: false });
 
 type Controls = ComponentRef<typeof OrbitControls>;
 
@@ -38,17 +55,9 @@ function measure(keys: LayoutKey[]) {
     width = Math.max(width, k.x + k.w);
     depth = Math.max(depth, rowTop(k.row) + k.h);
   }
-  return { width, depth, halfSpan: width / 2 + PLATE_MARGIN };
-}
-
-/** Camera distance at which the plate spans the canvas width at 100% zoom. */
-function fitDistance(halfSpan: number, aspect: number) {
-  return (halfSpan / (Math.tan((FOV / 2) * (Math.PI / 180)) * aspect)) * 1.15;
-}
-
-function cameraPos(yaw: number, zoom: number, fit: number): [number, number, number] {
-  const r = fit / zoom;
-  return [r * Math.sin(POLAR) * Math.sin(yaw), r * Math.cos(POLAR), r * Math.sin(POLAR) * Math.cos(yaw)];
+  // half the plate's diagonal, keycap tops included: the camera keeps this sphere in frame at any angle
+  const radius = Math.hypot(width / 2 + PLATE_MARGIN, depth / 2 + PLATE_MARGIN, PLATE_T / 2 + LIFT + KEY_H);
+  return { width, depth, radius };
 }
 
 type KeyProps = {
@@ -58,10 +67,11 @@ type KeyProps = {
   depth: number;
   bound: boolean;
   selected: boolean;
+  backlight: number;
   onSelect: (code: string) => void;
 };
 
-function Key({ k, legend, width, depth, bound, selected, onSelect }: KeyProps) {
+function Key({ k, legend, width, depth, bound, selected, backlight, onSelect }: KeyProps) {
   const cap = useMemo<[number, number, number]>(() => [k.w - GAP, KEY_H, k.h - GAP], [k.w, k.h]);
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
@@ -72,11 +82,14 @@ function Key({ k, legend, width, depth, bound, selected, onSelect }: KeyProps) {
   );
   const short = legend.length <= 2;
   const fontSize = short ? (k.h < 1 ? 0.2 : 0.3) : k.h < 1 ? 0.12 : 0.15;
+  const glow = bound ? GLOW[backlight] : 0;
+  // printed legends are near-white, lit ones pure white; with the backlight off they sit in dim gray
+  const ink = selected || glow ? "#FFFFFF" : backlight ? "#E4E4E8" : "#9A9AA2";
   return (
     <group position={[k.x + k.w / 2 - width / 2, PLATE_T / 2 + KEY_H / 2, rowTop(k.row) + k.h / 2 - depth / 2]}>
       {/* backlight bleeding around the cap, like the real board's white LEDs: bright when bound */}
       <RoundedBox args={[k.w - 0.01, 0.02, k.h - 0.01]} radius={0.04} smoothness={2} position={[0, -KEY_H / 2 + 0.01, 0]}>
-        <meshBasicMaterial color={bound ? "#FFFFFF" : "#2E2E33"} toneMapped={false} />
+        <meshBasicMaterial color={BLEED[bound ? backlight : 0]} toneMapped={false} />
       </RoundedBox>
       <RoundedBox
         args={cap}
@@ -88,9 +101,9 @@ function Key({ k, legend, width, depth, bound, selected, onSelect }: KeyProps) {
         onPointerOut={() => (document.body.style.cursor = "")}
       >
         <meshStandardMaterial
-          color={selected ? "#1E2A44" : "#151517"}
+          color={selected ? "#22304D" : "#1D1D21"}
           metalness={0.1}
-          roughness={0.6}
+          roughness={0.55}
           emissive="#4C8DFF"
           emissiveIntensity={selected ? 0.35 : 0}
         />
@@ -105,14 +118,16 @@ function Key({ k, legend, width, depth, bound, selected, onSelect }: KeyProps) {
         <Suspense fallback={null}>
           <Text
             font={fontUrl}
+            material={LEGEND}
             fontSize={fontSize}
             maxWidth={k.w - 0.2}
             textAlign="center"
-            color={bound || selected ? "#FFFFFF" : "#8A8A93"}
-            outlineWidth={bound ? "12%" : 0}
-            outlineBlur={bound ? "40%" : 0}
-            outlineColor="#FFFFFF"
-            outlineOpacity={0.55}
+            color={ink}
+            // lit legends get a soft white glow; the rest a thin solid outline that reads as a bolder print
+            outlineWidth={glow ? "12%" : "3%"}
+            outlineBlur={glow ? "40%" : 0}
+            outlineColor={glow ? "#FFFFFF" : ink}
+            outlineOpacity={glow || 1}
             anchorX="center"
             anchorY="middle"
             depthOffset={-1}
@@ -127,12 +142,33 @@ function Key({ k, legend, width, depth, bound, selected, onSelect }: KeyProps) {
   );
 }
 
-type RigProps = { yaw: number; zoom: number; halfSpan: number; onViewChange: Keyboard3DProps["onViewChange"] };
+/** Studio lights, all scaled by the viewer's Brightness. The Lightformers are rendered once into a cube
+ * map on the spot (no HDR download) and give the aluminium plate soft reflections. */
+function Lights({ brightness: b }: { brightness: number }) {
+  return (
+    <>
+      <hemisphereLight color="#FFFFFF" groundColor="#2A2A30" intensity={1.3 * b} />
+      <directionalLight position={[6, 12, 8]} intensity={2.6 * b} />
+      <directionalLight position={[-8, 6, 4]} intensity={0.8 * b} />
+      {/* rim from behind so the cap edges catch a line of light */}
+      <directionalLight position={[0, 5, -12]} intensity={1.4 * b} color="#DCE6FF" />
+      <Environment resolution={128} environmentIntensity={b}>
+        <Lightformer intensity={3} position={[0, 12, 0]} scale={[24, 12]} />
+        <Lightformer intensity={1.5} position={[-14, 5, 0]} scale={[14, 4]} />
+        <Lightformer intensity={1.5} position={[14, 5, 0]} scale={[14, 4]} />
+      </Environment>
+    </>
+  );
+}
 
-/** OrbitControls kept in two-way sync with the yaw/zoom props. Lives inside <Canvas>. */
-function Rig({ yaw, zoom, halfSpan, onViewChange }: RigProps) {
+type RigProps = { yaw: number; pitch: number; zoom: number; radius: number; onViewChange: Keyboard3DProps["onViewChange"] };
+
+const near = (a: number, b: number) => Math.abs(a - b) < 1e-3;
+
+/** OrbitControls kept in two-way sync with the view props. Lives inside <Canvas>. */
+function Rig({ yaw, pitch, zoom, radius, onViewChange }: RigProps) {
   const aspect = useThree((s) => (s.size.width > 0 && s.size.height > 0 ? s.size.width / s.size.height : 1));
-  const fit = fitDistance(halfSpan, aspect);
+  const fit = fitDistance(radius, aspect);
   const ref = useRef<Controls>(null);
   const applying = useRef(false);
 
@@ -140,21 +176,22 @@ function Rig({ yaw, zoom, halfSpan, onViewChange }: RigProps) {
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
-    const v = clampView({ yaw, zoom });
+    const v = clampView({ yaw, pitch, zoom });
     const dist = fit / v.zoom;
-    if (Math.abs(c.getAzimuthalAngle() - v.yaw) < 1e-3 && Math.abs(c.getDistance() - dist) < 1e-3) return;
+    if (near(wrapAngle(c.getAzimuthalAngle() - v.yaw), 0) && near(c.getPolarAngle(), v.pitch) && near(c.getDistance(), dist)) return;
     applying.current = true;
-    c.setAzimuthalAngle(v.yaw); // three-stdlib OrbitControls (drei) has this; vanilla three's does not
+    c.setAzimuthalAngle(v.yaw); // three-stdlib OrbitControls (drei) has these setters; vanilla three's does not
+    c.setPolarAngle(v.pitch);
     c.object.position.sub(c.target).setLength(dist).add(c.target); // three-stdlib has no setDistance
     c.update();
     applying.current = false;
-  }, [yaw, zoom, fit]);
+  }, [yaw, pitch, zoom, fit]);
 
   // camera -> props (right-drag, wheel, middle-drag)
   const onChange = useCallback(() => {
     const c = ref.current;
     if (!c || applying.current) return;
-    onViewChange(clampView({ yaw: c.getAzimuthalAngle(), zoom: fit / c.getDistance() }));
+    onViewChange(clampView({ yaw: c.getAzimuthalAngle(), pitch: c.getPolarAngle(), zoom: fit / c.getDistance() }));
   }, [fit, onViewChange]);
 
   return (
@@ -166,10 +203,9 @@ function Rig({ yaw, zoom, halfSpan, onViewChange }: RigProps) {
       enableDamping={false}
       enableZoom
       zoomSpeed={1}
-      minPolarAngle={POLAR}
-      maxPolarAngle={POLAR}
-      minAzimuthAngle={-YAW_LIMIT}
-      maxAzimuthAngle={YAW_LIMIT}
+      // yaw goes all the way round; tilt stops above the horizon so the underside never shows
+      minPolarAngle={PITCH_MIN}
+      maxPolarAngle={PITCH_MAX}
       minDistance={fit / ZOOM_MAX}
       maxDistance={fit / ZOOM_MIN}
       onChange={onChange}
@@ -184,13 +220,15 @@ export default function Keyboard3D({
   onSelect,
   legends,
   yaw,
+  pitch,
   zoom,
+  lighting,
   onViewChange,
 }: Keyboard3DProps) {
-  const { width, depth, halfSpan } = useMemo(() => measure(layout.keys), [layout]);
-  const square = fitDistance(halfSpan, 1);
+  const { width, depth, radius } = useMemo(() => measure(layout.keys), [layout]);
+  const square = fitDistance(radius, 1);
   // initial camera only; Rig fits it to the canvas aspect and keeps it in sync afterwards
-  const [initial] = useState(() => cameraPos(yaw, zoom, square));
+  const [initial] = useState(() => cameraPos(clampView({ yaw, pitch, zoom }), square));
 
   return (
     <Canvas
@@ -198,12 +236,10 @@ export default function Keyboard3D({
       camera={{ fov: FOV, near: 0.1, far: square * 4, position: initial }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[6, 10, 6]} intensity={1.4} />
-      <directionalLight position={[-8, 6, -4]} intensity={0.5} />
+      <Lights brightness={lighting.brightness} />
       {/* plate: space gray aluminium */}
       <RoundedBox args={[width + PLATE_MARGIN * 2, PLATE_T, depth + PLATE_MARGIN * 2]} radius={0.12} smoothness={6}>
-        <meshStandardMaterial color="#6A6C73" metalness={0.35} roughness={0.45} />
+        <meshStandardMaterial color="#6A6C73" metalness={0.5} roughness={0.4} />
       </RoundedBox>
       {layout.keys.map((k) => (
         <Key
@@ -214,10 +250,11 @@ export default function Keyboard3D({
           depth={depth}
           bound={boundCodes.has(k.code)}
           selected={k.code === selected}
+          backlight={lighting.backlight}
           onSelect={onSelect}
         />
       ))}
-      <Rig yaw={yaw} zoom={zoom} halfSpan={halfSpan} onViewChange={onViewChange} />
+      <Rig yaw={yaw} pitch={pitch} zoom={zoom} radius={radius} onViewChange={onViewChange} />
     </Canvas>
   );
 }
