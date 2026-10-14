@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import ActionPicker from "./ActionPicker";
 import KeyMonitor from "./KeyMonitor";
-import { chordRecorder, describeAction, formatChord, isMac, KEY_GROUPS, keyLabel } from "../lib/actions";
+import Keycap from "./Keycap";
+import KeyPicker from "./KeyPicker";
+import { chordRecorder, describeAction, formatChord, isMac } from "../lib/actions";
 import { useRecord } from "../lib/record";
 import type { AppState } from "../lib/state";
 import type { AppEntry, Binding, KeyEvent, Layout, Modifier, Profile } from "../lib/types";
@@ -54,7 +56,6 @@ function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles }:
   const key = layout.keys.find((k) => k.code === keyCode);
   const summary = describeAction(binding?.action, catalog, profiles);
   const sends = binding?.action.type === "key_combo" ? binding.action.keys : [];
-  const listed = sends.length === 1 && KEY_GROUPS.some((g) => g.codes.includes(sends[0])) ? sends[0] : "";
 
   /** Built from the latest saved binding, not this render's, so quick edits cannot undo each other. */
   function commit(update: (old?: Binding) => Binding | null) {
@@ -81,7 +82,7 @@ function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles }:
   return (
     <>
       <div className="insp-key">
-        <span className="insp-cap">{key?.mac || "space"}</span>
+        <Keycap code={keyCode} size="lg" lit />
         <div>
           <div className="insp-name">{keyCode}</div>
           <div className="muted">
@@ -112,30 +113,12 @@ function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles }:
           >
             {recording ? "Press any key…" : "Press a key"}
           </button>
-          <select
-            className="input"
-            aria-label="Key to send"
-            value={listed}
-            onChange={(e) => send([e.target.value])}
-          >
-            <option value="" disabled>
-              Choose a key…
-            </option>
-            {KEY_GROUPS.map((g) => (
-              <optgroup key={g.label} label={g.label}>
-                {g.codes.map((c) => (
-                  <option key={c} value={c}>
-                    {keyLabel(c)}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+          <KeyPicker value={sends} onPick={send} />
         </div>
         <p className="muted">
           {recording
             ? "Press the key or shortcut it should send. Esc cancels."
-            : "Press the key or shortcut it should send, or choose one from the list."}
+            : "Press the key or shortcut it should send, or pick one from the list. Win + V and other Windows shortcuts are in the list too."}
         </p>
       </div>
 

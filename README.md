@@ -25,7 +25,7 @@ Remap keys, launch apps and Steam games, and switch profiles automatically, on W
 
 <table>
   <tr>
-    <td width="33%" valign="top"><b>Remap any key</b><br>Select a key by clicking it or pressing it, then press the key or chord it should send (such as <kbd>Ctrl</kbd>+<kbd>Z</kbd>) or choose one from the list. It saves at once. Add "only when held with" modifiers for a second set of bindings.</td>
+    <td width="33%" valign="top"><b>Remap any key</b><br>Select a key by clicking it or pressing it, then press the key or chord it should send (such as <kbd>Ctrl</kbd>+<kbd>Z</kbd>) or pick it from a list of keycaps, Windows key included, with ready-made shortcuts like <kbd>Win</kbd>+<kbd>V</kbd> and <kbd>Win</kbd>+<kbd>C</kbd>. It saves at once. Add "only when held with" modifiers for a second set of bindings.</td>
     <td width="33%" valign="top"><b>Profiles</b><br>Switch by hand, by hotkey (next, previous, or one per profile), or automatically when a chosen app comes to the front.</td>
     <td width="33%" valign="top"><b>Launch any app</b><br>Desktop apps, Microsoft Store apps and system apps such as Calculator, Clock and Settings on Windows; every app on macOS. Searchable, with icons.</td>
   </tr>
@@ -57,7 +57,7 @@ Download from the [latest release](https://github.com/TyroneMadison/Macally-Stud
 
 1. Download the file ending in `_x64-setup.exe` (the `.msi` works too).
 2. Run it. The installer is not code-signed yet, so SmartScreen may say "Windows protected your PC": click **More info**, then **Run anyway**.
-3. Press **fn + esc** once on the keyboard (Fn-Lock) so the top row sends F1–F15. Macally Studio opens with the **Windows Default** profile: command works as Ctrl, option as Alt, F3 opens Task View, F4 the Start menu, F7–F12 control media and volume, F13 takes a screenshot, F14 opens Calculator and F15 opens Clock. Edit it as you like; **Profiles → Restore defaults** brings back these bindings.
+3. Press **fn + esc** once on the keyboard (Fn-Lock) so the top row sends F1–F15. Macally Studio opens with the **Windows Default** profile: command is the Windows key (tap it for Start; Win+V, Win+C and the rest work), option is Alt, F3 opens Task View, F4 the Start menu, F7–F12 control media and volume, F13 takes a screenshot, F14 opens Calculator and F15 opens Clock. Edit it as you like; **Profiles → Restore defaults** brings back these bindings.
 4. Want remaps inside apps that run as administrator? Turn on **Settings → Run as administrator**.
 
 ### macOS

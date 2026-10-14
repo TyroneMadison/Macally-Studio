@@ -63,17 +63,24 @@ describe("Inspector", () => {
     expect(html).toContain('<button type="button" class="btn">Reset key</button>');
   });
 
-  it("offers Press a key and the key list, showing a single-key binding in the list", () => {
+  it("offers Press a key and the keycap list, showing what the key sends", () => {
     const html = render("F3", { ...mine, bindings: { F3: { mods: [], action: { type: "key_combo", keys: ["KeyQ"] } } } });
     expect(html).toContain('<button type="button" class="btn primary" aria-pressed="false">Press a key</button>');
-    expect(html).toContain('<optgroup label="Letters">');
-    expect(html).toContain('<option value="KeyQ" selected="">Q</option>');
+    expect(html).toContain('aria-label="Sends Q. Choose a key"');
+    expect(html).toContain('data-code="KeyQ"');
   });
 
-  it("leaves the list on its prompt for a chord", () => {
+  it("shows a Win chord as keycaps with the Windows logo", () => {
     const html = render("F3");
     expect(html).toContain('<span class="insp-title">Win + Tab</span>');
-    expect(html).toContain('<option value="" disabled="" selected="">Choose a key…</option>');
+    expect(html).toContain('aria-label="Sends Win + Tab. Choose a key"');
+    expect(html).toContain('data-icon="windows"');
+  });
+
+  it("offers the list on its prompt for an unbound key", () => {
+    const html = render("F3", { ...mine, bindings: {} });
+    expect(html).toContain('aria-label="Choose a key"');
+    expect(html).toContain("Choose a key…");
   });
 
   it("edits built-in profiles like any other", () => {
