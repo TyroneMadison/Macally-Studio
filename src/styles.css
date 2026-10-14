@@ -424,3 +424,30 @@ a:hover { color: #7faaff; }
   border: 1px solid transparent; background: transparent; color: var(--text); font: inherit; font-size: 13px; cursor: pointer; text-align: left;
 }
 .kp-key:focus-visible, .kp-shortcut:focus-visible, .kp-mod:focus-visible, .kp-trigger:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Key picker: Launch program tab */
+.kp-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); }
+.kp-tabs button {
+  flex: 1; height: 30px; border-radius: 8px; border: 1px solid transparent; background: transparent;
+  color: var(--muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.kp-tabs button[aria-selected="true"] { background: #2a2a2f; border-color: #3a3a42; color: var(--text); }
+.kp-apps-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.kp-refresh {
+  height: 26px; padding: 0 10px; border-radius: 7px; border: 1px solid #3a3a42; background: var(--raised);
+  color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.kp-refresh:disabled { opacity: 0.6; cursor: default; }
+.kp-apps { display: flex; flex-direction: column; gap: 2px; }
+.kp-app {
+  display: flex; align-items: center; gap: 10px; padding: 5px 8px; min-width: 0; border-radius: 10px;
+  border: 1px solid transparent; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+}
+.kp-app:hover, .kp-app:focus-visible { background: var(--raised); border-color: var(--border); }
+.kp-app:focus-visible, .kp-tabs button:focus-visible, .kp-refresh:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.kp-app[aria-pressed="true"] { border-color: var(--primary); background: rgba(76, 141, 255, 0.12); }
+.kp-app-icon { width: 24px; height: 24px; flex: none; border-radius: 6px; object-fit: contain; }
+.kp-glyph { display: grid; place-items: center; background: #2a2a2f; color: #fff; font-family: var(--font-mono); font-size: 10px; }
+.kp-app-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kp-trigger-app { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.kp-trigger-app .kp-app-icon { width: 20px; height: 20px; }

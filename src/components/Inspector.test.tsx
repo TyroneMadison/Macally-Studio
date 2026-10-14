@@ -77,10 +77,16 @@ describe("Inspector", () => {
     expect(html).toContain('data-icon="windows"');
   });
 
-  it("offers the list on its prompt for an unbound key", () => {
+  it("offers keys and programs on its prompt for an unbound key", () => {
     const html = render("F3", { ...mine, bindings: {} });
     expect(html).toContain('aria-label="Choose a key"');
-    expect(html).toContain("Choose a key…");
+    expect(html).toContain("Choose a key or program…");
+  });
+
+  it("shows a program binding as the program it opens", () => {
+    const html = render("F14");
+    expect(html).toContain('aria-label="Launches Calculator. Choose a key or program"');
+    expect(html).toContain("Open Calculator");
   });
 
   it("edits built-in profiles like any other", () => {

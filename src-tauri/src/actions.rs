@@ -71,23 +71,50 @@ fn spawn(program: &str, args: &[String], hidden: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// What ShellExecute is given for a Windows launch: the file to open, its arguments and the folder
+/// to start in.
+#[derive(Debug, PartialEq, Eq)]
+pub struct LaunchSpec {
+    pub file: String,
+    pub params: String,
+    pub dir: Option<String>,
+}
+
+/// Store and Start-menu apps open through `shell:AppsFolder\<AUMID>`. A shortcut (.lnk) opens as is:
+/// it carries its own arguments and start folder. A program starts in its own folder, as it does
+/// from Explorer, because many look for their files next to the exe.
+pub fn launch_spec(target: &AppRef) -> anyhow::Result<LaunchSpec> {
+    match target {
+        AppRef::Aumid { id } => {
+            anyhow::ensure!(!id.trim().is_empty(), "no app id to launch");
+            Ok(LaunchSpec { file: format!("shell:AppsFolder\\{}", id.trim()), params: String::new(), dir: None })
+        }
+        AppRef::Path { path, args } => {
+            let path = path.trim().trim_matches('"').to_string();
+            anyhow::ensure!(!path.is_empty(), "no program to launch");
+            let lnk = path.to_ascii_lowercase().ends_with(".lnk");
+            // string-based so Windows paths split the same on every OS the tests run on
+            let dir = path.rfind(['\\', '/']).filter(|_| !lnk).map(|i| path[..i].to_string()).filter(|d| !d.is_empty());
+            Ok(LaunchSpec { file: path, params: args.trim().to_string(), dir })
+        }
+        AppRef::Bundle { id } => anyhow::bail!("{id} is a macOS app"),
+    }
+}
+
 #[cfg(target_os = "windows")]
 fn launch(target: &AppRef) -> anyhow::Result<()> {
     use windows::Win32::UI::Shell::ShellExecuteW;
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
     use windows::core::{HSTRING, PCWSTR, w};
 
-    let (file, params) = match target {
-        AppRef::Aumid { id } => (format!("shell:AppsFolder\\{id}"), String::new()),
-        AppRef::Path { path, args } => (path.clone(), args.clone()),
-        AppRef::Bundle { id } => anyhow::bail!("{id} is a macOS app"),
-    };
-    let file_w = HSTRING::from(file.as_str());
-    let params_w = HSTRING::from(params.as_str());
-    let params_ptr = if params.is_empty() { PCWSTR::null() } else { PCWSTR(params_w.as_ptr()) };
-    let r = unsafe { ShellExecuteW(None, w!("open"), &file_w, params_ptr, PCWSTR::null(), SW_SHOWNORMAL) };
+    let spec = launch_spec(target)?;
+    let file = HSTRING::from(spec.file.as_str());
+    let params = HSTRING::from(spec.params.as_str());
+    let dir = HSTRING::from(spec.dir.as_deref().unwrap_or_default());
+    let opt = |s: &HSTRING| if s.is_empty() { PCWSTR::null() } else { PCWSTR(s.as_ptr()) };
+    let r = unsafe { ShellExecuteW(None, w!("open"), &file, opt(&params), opt(&dir), SW_SHOWNORMAL) };
     // ShellExecuteW reports success as a value greater than 32
-    anyhow::ensure!(r.0 as isize > 32, "could not launch {file} (ShellExecute error {})", r.0 as isize);
+    anyhow::ensure!(r.0 as isize > 32, "could not launch {} (ShellExecute error {})", spec.file, r.0 as isize);
     Ok(())
 }
 
@@ -107,7 +134,95 @@ fn launch(target: &AppRef) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod run_tests {
-    use super::has_scheme;
+    use super::{AppRef, LaunchSpec, has_scheme, launch_spec};
+
+    fn path(p: &str, args: &str) -> AppRef {
+        AppRef::Path { path: p.into(), args: args.into() }
+    }
+
+    #[test]
+    fn exe_starts_in_its_own_folder_with_its_arguments() {
+        assert_eq!(
+            launch_spec(&path(r"C:\Program Files\Tool\tool.exe", " --fast ")).unwrap(),
+            LaunchSpec {
+                file: r"C:\Program Files\Tool\tool.exe".into(),
+                params: "--fast".into(),
+                dir: Some(r"C:\Program Files\Tool".into()),
+            }
+        );
+        // a quoted path from a registry value loses its quotes
+        assert_eq!(launch_spec(&path(r#""C:\Apps\a.exe""#, "")).unwrap().file, r"C:\Apps\a.exe");
+    }
+
+    #[test]
+    fn shortcut_opens_as_is() {
+        let lnk = r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Tool\Tool.lnk";
+        assert_eq!(
+            launch_spec(&path(lnk, "")).unwrap(),
+            LaunchSpec { file: lnk.into(), params: String::new(), dir: None }
+        );
+    }
+
+    #[test]
+    fn store_app_opens_through_apps_folder() {
+        let calc = AppRef::Aumid { id: "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App".into() };
+        assert_eq!(
+            launch_spec(&calc).unwrap(),
+            LaunchSpec {
+                file: r"shell:AppsFolder\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App".into(),
+                params: String::new(),
+                dir: None,
+            }
+        );
+        // Get-StartApps ids for desktop programs carry a known-folder path; they open the same way
+        let zip = AppRef::Aumid { id: r"{6D809377-6AF0-444B-8957-A3773F02200E}\7-Zip\7zFM.exe".into() };
+        assert_eq!(launch_spec(&zip).unwrap().file, r"shell:AppsFolder\{6D809377-6AF0-444B-8957-A3773F02200E}\7-Zip\7zFM.exe");
+    }
+
+    #[test]
+    fn nothing_to_launch_is_an_error() {
+        assert!(launch_spec(&AppRef::Aumid { id: " ".into() }).is_err());
+        assert!(launch_spec(&path("", "")).is_err());
+        assert!(launch_spec(&AppRef::Bundle { id: "com.apple.calculator".into() }).is_err());
+    }
+
+    /// Starts Notepad through the real launch path, then closes it. Opt-in, desktop only:
+    /// `cargo test --manifest-path src-tauri/Cargo.toml -- --ignored launches_notepad`.
+    /// Skipped while Notepad is already open, so the user's window and tabs are never touched.
+    #[cfg(target_os = "windows")]
+    #[test]
+    #[ignore = "opens and closes Notepad"]
+    fn launches_notepad_through_the_launch_path() {
+        fn notepad_pids() -> Vec<u32> {
+            let out = std::process::Command::new("tasklist")
+                .args(["/FI", "IMAGENAME eq notepad.exe", "/FO", "CSV", "/NH"])
+                .output()
+                .unwrap();
+            String::from_utf8_lossy(&out.stdout)
+                .lines()
+                .filter_map(|l| l.split("\",\"").nth(1)?.trim_matches('"').parse().ok())
+                .collect()
+        }
+        if !notepad_pids().is_empty() {
+            eprintln!("Notepad is already open; skipped so it is not disturbed");
+            return;
+        }
+        let windir = std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into());
+        super::launch(&path(&format!(r"{windir}\System32\notepad.exe"), "")).unwrap();
+        let mut pids = Vec::new();
+        for _ in 0..50 {
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            pids = notepad_pids();
+            if !pids.is_empty() {
+                break;
+            }
+        }
+        assert!(!pids.is_empty(), "Notepad did not start");
+        for pid in &pids {
+            let _ = std::process::Command::new("taskkill").args(["/PID", &pid.to_string(), "/F"]).output();
+        }
+        eprintln!("launched and closed Notepad (pid {pids:?})");
+    }
 
     #[test]
     fn urls_and_paths_are_told_apart() {

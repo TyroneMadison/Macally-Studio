@@ -1,5 +1,6 @@
-// Windows Start-menu apps via Get-StartApps: one list covering Win32, Store and system apps.
-// Launch = `shell:AppsFolder\<AppID>`, which ShellExecute opens for every AppID shape.
+// Windows apps: Get-StartApps (Win32, Store and system apps; launch = `shell:AppsFolder\<AppID>`,
+// which ShellExecute opens for every AppID shape), plus the installed programs programs.rs finds
+// in Start-menu shortcuts, App Paths and the Uninstall registry (launch = the .lnk or .exe).
 
 use std::path::Path;
 
@@ -68,6 +69,28 @@ pub fn parse_start_apps(json: &str) -> Vec<AppEntry> {
 
 #[cfg(target_os = "windows")]
 pub fn scan(icons_dir: &Path) -> anyhow::Result<Vec<AppEntry>> {
+    use super::programs::{self, Found};
+    // Get-StartApps first: its ids are what profiles saved before the other sources existed
+    let start = start_apps().unwrap_or_else(|e| {
+        eprintln!("catalog: Get-StartApps failed, listing installed programs only: {e:#}");
+        Vec::new()
+    });
+    let mut lists = vec![start.into_iter().map(|e| Found { target: e.launch.clone(), entry: e }).collect()];
+    lists.extend(programs::scan());
+    let mut apps = programs::dedupe(lists);
+    super::sort_entries(&mut apps, BUILTIN);
+    for app in &mut apps {
+        let file = icons_dir.join(super::icon_file_name(&app.launch, "png"));
+        // ponytail: cached icons never refresh; delete <data_dir>/icons to rebuild them.
+        if file.is_file() || save_icon_png(&app.launch, &file).is_ok() {
+            app.icon = Some(file.to_string_lossy().into_owned());
+        }
+    }
+    Ok(apps)
+}
+
+#[cfg(target_os = "windows")]
+fn start_apps() -> anyhow::Result<Vec<AppEntry>> {
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     let out = std::process::Command::new("powershell")
@@ -84,15 +107,7 @@ pub fn scan(icons_dir: &Path) -> anyhow::Result<Vec<AppEntry>> {
         "Get-StartApps failed: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    let mut apps = parse_start_apps(&String::from_utf8_lossy(&out.stdout));
-    for app in &mut apps {
-        let file = icons_dir.join(super::icon_file_name(&app.launch, "png"));
-        // ponytail: cached icons never refresh; delete <data_dir>/icons to rebuild them.
-        if file.is_file() || save_icon_png(&app.launch, &file).is_ok() {
-            app.icon = Some(file.to_string_lossy().into_owned());
-        }
-    }
-    Ok(apps)
+    Ok(parse_start_apps(&String::from_utf8_lossy(&out.stdout)))
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -100,7 +115,7 @@ pub fn scan(_icons_dir: &Path) -> anyhow::Result<Vec<AppEntry>> {
     Ok(Vec::new())
 }
 
-/// Shell icon of a parsing name (`shell:AppsFolder\<AppID>` or an exe path) -> 64 px PNG file.
+/// Shell icon of a parsing name (`shell:AppsFolder\<AppID>`, an .exe or a .lnk) -> 64 px PNG file.
 #[cfg(target_os = "windows")]
 fn save_icon_png(parsing_name: &str, file: &Path) -> anyhow::Result<()> {
     use windows::Win32::Foundation::SIZE;
@@ -200,6 +215,34 @@ mod tests {
             r"shell:AppsFolder\{6D809377-6AF0-444B-8957-A3773F02200E}\7-Zip\7zFM.exe"
         );
         assert!(apps[2].id.starts_with("app:"));
+    }
+
+    /// The whole Windows scan on this machine: Start-menu and Store apps plus installed programs,
+    /// each with a real icon written to a temp folder. Opt-in (slow, writes files):
+    /// `cargo test --manifest-path src-tauri/Cargo.toml -- --ignored scan_finds_programs`.
+    #[cfg(target_os = "windows")]
+    #[test]
+    #[ignore = "runs Get-StartApps and extracts every icon; slow"]
+    fn scan_finds_programs_with_icons_on_this_machine() {
+        let dir = std::env::temp_dir().join(format!("macally-icons-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let apps = scan(&dir).unwrap();
+        let ends = |ext: &str| apps.iter().filter(|a| a.launch.to_ascii_lowercase().ends_with(ext)).count();
+        let aumids = apps.iter().filter(|a| a.kind == "aumid").count();
+        let with_icon = apps
+            .iter()
+            .filter(|a| a.icon.as_deref().is_some_and(|p| std::fs::metadata(p).is_ok_and(|m| m.len() > 100)))
+            .count();
+        eprintln!(
+            "{} apps: {aumids} Start/Store apps, {} shortcuts, {} exes; {with_icon} with an icon",
+            apps.len(),
+            ends(".lnk"),
+            ends(".exe")
+        );
+        assert!(aumids > 0, "Get-StartApps found nothing");
+        assert!(ends(".lnk") + ends(".exe") > 0, "no installed programs beyond the Start-menu app list");
+        assert!(with_icon * 10 >= apps.len() * 9, "fewer than 90% of programs got an icon");
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

@@ -1,7 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Keycap, { ChordCaps } from "./Keycap";
-import { formatChord, isMac, KEY_GROUPS, keyLabel, type Mod } from "../lib/actions";
+import ProgramList, { AppIcon } from "./ProgramList";
+import { describeAction, entryToAction, formatChord, isMac, KEY_GROUPS, keyLabel, launchOf, type Mod } from "../lib/actions";
+import { refreshCatalog } from "../lib/ipc";
 import { buildChord, capFace, keyMatches, WINDOWS_SHORTCUTS } from "../lib/keycap";
+import type { Action, AppEntry } from "../lib/types";
 
 export type KeyPickerProps = {
   /** The chord the key sends now (empty when it sends nothing of its own). */
@@ -10,7 +13,14 @@ export type KeyPickerProps = {
   mac?: boolean;
   /** Opens on first render (tests). */
   defaultOpen?: boolean;
+  /** The key's whole binding, to show and mark a program it launches. */
+  action?: Action;
+  /** Detected programs; with `onLaunch` they fill the "Launch program" tab. */
+  catalog?: AppEntry[];
+  onLaunch?: (a: Action) => void;
 };
+
+type Tab = "keys" | "launch";
 
 const MOD_CODE: Record<Mod, string> = { Meta: "MetaLeft", Ctrl: "ControlLeft", Alt: "AltLeft", Shift: "ShiftLeft" };
 /** Win first: it is the one people come here for (Win + V, Win + C). */
@@ -21,8 +31,19 @@ function modName(m: Mod, mac: boolean): string {
 }
 
 /** "Remap to" list: every key as a keycap thumbnail, "send with" modifiers, and Windows shortcuts. */
-export default function KeyPicker({ value, onPick, mac = isMac, defaultOpen = false }: KeyPickerProps) {
+export default function KeyPicker({
+  value,
+  onPick,
+  mac = isMac,
+  defaultOpen = false,
+  action,
+  catalog = [],
+  onLaunch,
+}: KeyPickerProps) {
+  const launching = launchOf(action);
   const [open, setOpen] = useState(defaultOpen);
+  const [tab, setTab] = useState<Tab>(onLaunch && launching ? "launch" : "keys");
+  const [scanning, setScanning] = useState(false);
   const [query, setQuery] = useState("");
   const [mods, setMods] = useState<Mod[]>([]);
   const root = useRef<HTMLDivElement>(null);
@@ -55,7 +76,7 @@ export default function KeyPicker({ value, onPick, mac = isMac, defaultOpen = fa
   const shortcuts = mac
     ? []
     : WINDOWS_SHORTCUTS.filter((s) => keyMatches("", `${s.label} ${s.words} ${formatChord(s.keys, mac)}`, query));
-  const single = value.length === 1 ? value[0] : null;
+  const single = !launching && value.length === 1 ? value[0] : null;
 
   const pick = (keys: string[]) => {
     onPick(keys);
@@ -64,6 +85,20 @@ export default function KeyPicker({ value, onPick, mac = isMac, defaultOpen = fa
     setMods([]);
   };
   const toggle = (m: Mod) => setMods((ms) => (ms.includes(m) ? ms.filter((x) => x !== m) : [...ms, m]));
+  const launch = (e: AppEntry) => {
+    onLaunch?.(entryToAction(e));
+    setOpen(false);
+    setQuery("");
+  };
+  const rescan = () => {
+    setScanning(true);
+    // the app state refetches the catalog when the scan reports it is done
+    void refreshCatalog()
+      .catch(() => {})
+      .finally(() => setScanning(false));
+  };
+  const opens = launching ? catalog.find((e) => e.launch === launching) : undefined;
+  const opensName = opens?.name ?? (launching ? describeAction(action, catalog, []).title : "");
 
   return (
     <div
@@ -81,10 +116,25 @@ export default function KeyPicker({ value, onPick, mac = isMac, defaultOpen = fa
         className="input kp-trigger"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={value.length ? `Sends ${formatChord(value, mac)}. Choose a key` : "Choose a key"}
+        aria-label={
+          launching
+            ? `Launches ${opensName}. Choose a key or program`
+            : value.length
+              ? `Sends ${formatChord(value, mac)}. Choose a key`
+              : "Choose a key"
+        }
         onClick={() => setOpen((o) => !o)}
       >
-        {value.length ? <ChordCaps keys={value} mac={mac} /> : <span className="muted">Choose a key…</span>}
+        {launching ? (
+          <span className="kp-trigger-app">
+            {opens && <AppIcon entry={opens} />}
+            <span className="kp-app-name">Open {opensName}</span>
+          </span>
+        ) : value.length ? (
+          <ChordCaps keys={value} mac={mac} />
+        ) : (
+          <span className="muted">{onLaunch ? "Choose a key or program…" : "Choose a key…"}</span>
+        )}
         <svg className="kp-chevron" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -92,15 +142,35 @@ export default function KeyPicker({ value, onPick, mac = isMac, defaultOpen = fa
 
       {open && (
         <div className="kp-pop" role="dialog" aria-label="Choose a key" style={place}>
+          {onLaunch && (
+            <div className="kp-tabs" role="tablist" aria-label="What the key does">
+              {(["keys", "launch"] as Tab[]).map((t) => (
+                <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>
+                  {t === "keys" ? "Send a key" : "Launch program"}
+                </button>
+              ))}
+            </div>
+          )}
           <input
             type="search"
             className="input kp-search"
-            placeholder="Search keys: win, clipboard, F13…"
-            aria-label="Search keys"
+            placeholder={tab === "launch" ? `Search ${catalog.length} programs` : "Search keys: win, clipboard, F13…"}
+            aria-label={tab === "launch" ? "Search programs" : "Search keys"}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
           />
+          {tab === "launch" ? (
+            <ProgramList
+              entries={catalog}
+              query={query}
+              selected={launching}
+              busy={scanning}
+              onLaunch={launch}
+              onRefresh={rescan}
+            />
+          ) : (
+          <>
           <div className="kp-mods" role="group" aria-label="Send together with">
             <span className="kp-label">Send with</span>
             {MOD_CHIPS.map((m) => (
@@ -172,6 +242,8 @@ export default function KeyPicker({ value, onPick, mac = isMac, defaultOpen = fa
             ))}
             {shortcuts.length === 0 && groups.length === 0 && <p className="muted">No key matches “{query}”.</p>}
           </div>
+          </>
+          )}
         </div>
       )}
     </div>

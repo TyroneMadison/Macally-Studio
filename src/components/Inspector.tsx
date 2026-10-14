@@ -113,12 +113,18 @@ function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles }:
           >
             {recording ? "Press any key…" : "Press a key"}
           </button>
-          <KeyPicker value={sends} onPick={send} />
+          <KeyPicker
+            value={sends}
+            onPick={send}
+            action={binding?.action}
+            catalog={catalog}
+            onLaunch={(a) => commit((old) => ({ mods: old?.mods ?? [], action: a }))}
+          />
         </div>
         <p className="muted">
           {recording
             ? "Press the key or shortcut it should send. Esc cancels."
-            : "Press the key or shortcut it should send, or pick one from the list. Win + V and other Windows shortcuts are in the list too."}
+            : "Press the key or shortcut it should send, or pick from the list: any key, Windows shortcuts like Win + V, or a program to launch."}
         </p>
       </div>
 
