@@ -6,6 +6,7 @@ pub mod foreground;
 pub mod hotkeys;
 pub mod keymap;
 pub mod profiles;
+pub mod tray;
 pub mod version;
 
 use std::sync::Arc;
