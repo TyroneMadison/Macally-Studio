@@ -259,3 +259,9 @@ a:hover { color: #7faaff; }
 .gate-card h1 { margin: 4px 0 0; }
 .gate-card p { line-height: 1.5; }
 .gate-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 12px; background: var(--raised); border: 1px solid var(--border); }
+
+/* Chord field (Inspector, action picker) */
+.chord { display: flex; gap: 8px; }
+.chord > .input { flex: 1; min-width: 0; }
+.chord .btn { height: 38px; }
+.btn.rec { border-color: #ff6b6b; color: #ff6b6b; }
