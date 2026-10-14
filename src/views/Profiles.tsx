@@ -78,7 +78,7 @@ export default function Profiles({ store, onNav }: Props) {
           ))}
         </span>
       </span>
-      <span className="muted small mono">{p.builtin ? "Read-only" : p.hotkey}</span>
+      <span className="muted small mono">{p.hotkey}</span>
     </button>
   );
 

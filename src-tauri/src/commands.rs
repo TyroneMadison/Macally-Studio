@@ -89,9 +89,20 @@ impl AppState {
 
     pub fn save(&self, p: Profile) -> anyhow::Result<()> {
         self.store.lock().unwrap().save_profile(&p)?;
+        self.written(&p)
+    }
+
+    /// A built-in back the way it shipped.
+    pub fn reset(&self, id: &str) -> anyhow::Result<()> {
+        let p = self.store.lock().unwrap().reset_profile(id)?;
+        self.written(&p)
+    }
+
+    /// After a profile file changed: reload the list, and the engine if it is the active one.
+    fn written(&self, p: &Profile) -> anyhow::Result<()> {
         self.reload()?;
         if p.id == self.active_id() {
-            self.engine.set_profile(&p);
+            self.engine.set_profile(p);
         }
         Ok(())
     }
@@ -151,6 +162,13 @@ pub fn get_profile(state: State<'_, AppState>, id: String) -> CmdResult<Profile>
 #[tauri::command]
 pub fn save_profile(app: AppHandle, state: State<'_, AppState>, profile: Profile) -> CmdResult<()> {
     state.save(profile).map_err(err)?;
+    crate::control::resync(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn reset_profile(app: AppHandle, state: State<'_, AppState>, id: String) -> CmdResult<()> {
+    state.reset(&id).map_err(err)?;
     crate::control::resync(&app);
     Ok(())
 }
@@ -354,6 +372,20 @@ mod tests {
         state.save(p.clone()).unwrap();
         assert_eq!(*spy.last.lock().unwrap(), p.id);
         assert_eq!(state.profile(&p.id).unwrap().name, "Renamed");
+    }
+
+    #[test]
+    fn resetting_the_active_builtin_refreshes_the_engine() {
+        let (state, spy) = setup("cmd-reset");
+        let mut p = state.profile("windows-default").unwrap();
+        let shipped = p.bindings.clone();
+        p.bindings.clear();
+        state.save(p).unwrap();
+        state.activate("windows-default").unwrap();
+        spy.last.lock().unwrap().clear();
+        state.reset("windows-default").unwrap();
+        assert_eq!(*spy.last.lock().unwrap(), "windows-default");
+        assert_eq!(state.profile("windows-default").unwrap().bindings, shipped);
     }
 
     #[test]

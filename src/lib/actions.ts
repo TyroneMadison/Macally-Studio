@@ -78,6 +78,47 @@ export function recordStep(held: Mod[], e: KeyEvent): { held: Mod[]; done: strin
   return { held: [], done: [...orderMods([...held, ...reported]), e.code] };
 }
 
+/** A useRecord handler: collects one chord with recordStep, hands it to `done` and reports it finished. */
+export function chordRecorder(done: (keys: string[]) => void): (e: KeyEvent) => boolean {
+  let held: Mod[] = [];
+  return (e) => {
+    const step = recordStep(held, e);
+    held = step.held;
+    if (step.done) done(step.done);
+    return step.done !== null;
+  };
+}
+
+const SYMBOLS: Record<string, string> = {
+  Backquote: "`", Minus: "-", Equal: "=", BracketLeft: "[", BracketRight: "]", Backslash: "\\",
+  Semicolon: ";", Quote: "'", Comma: ",", Period: ".", Slash: "/",
+};
+
+function groupOf(code: string): string {
+  if (/^Key[A-Z]$/.test(code)) return "Letters";
+  if (/^Digit\d$/.test(code)) return "Numbers";
+  if (/^F\d+$/.test(code)) return "Function keys";
+  if (code === "Fn" || modAlias(code)) return "Modifiers";
+  if (code.startsWith("Num")) return "Numpad";
+  if (/^(Media|Audio|Brightness|Launch|Eject)/.test(code)) return "Media & volume";
+  return SYMBOLS[code] ? "Symbols" : "Navigation & editing";
+}
+
+/** Every key the engine can send, grouped for the Inspector's "Remap to" list. */
+export const KEY_GROUPS = [
+  "Letters", "Numbers", "Function keys", "Modifiers", "Navigation & editing", "Numpad", "Media & volume", "Symbols",
+].map((label) => {
+  const codes = KEY_CODES.filter((c) => groupOf(c) === label);
+  return { label, codes: label === "Letters" ? codes.sort() : codes }; // A-Z, not QWERTY order
+});
+
+/** One key's list label: "Left Ctrl", "Semicolon ;", "Play/Pause". */
+export function keyLabel(code: string, mac = isMac): string {
+  const side = /^(?:Control|Alt|Shift|Meta)(Left|Right)$/.exec(code)?.[1];
+  const name = formatChord([code], mac);
+  return side ? `${side} ${name}` : SYMBOLS[code] ? `${name} ${SYMBOLS[code]}` : name;
+}
+
 /** `-File "C:\My Scripts\x.ps1"` -> ["-File", "C:\My Scripts\x.ps1"]. */
 export function splitArgs(text: string): string[] {
   return (text.match(/"[^"]*"|\S+/g) ?? []).map((s) => s.replace(/^"(.*)"$/, "$1"));
@@ -88,7 +129,7 @@ export function joinArgs(args: string[]): string {
   return args.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(" ");
 }
 
-/** False for the empty templates the Inspector's type pills open the picker with. */
+/** False for an action the picker has not filled in yet (no keys, no app, empty target...). */
 export function isComplete(a: Action): boolean {
   switch (a.type) {
     case "key_combo":

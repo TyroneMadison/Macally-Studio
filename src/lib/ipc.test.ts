@@ -13,6 +13,8 @@ describe("ipc", () => {
   it("calls snake_case commands with named args", async () => {
     await ipc.exportProfile("photo", "C:/out.json");
     expect(invoke).toHaveBeenCalledWith("export_profile", { id: "photo", path: "C:/out.json" });
+    await ipc.resetProfile("windows-default");
+    expect(invoke).toHaveBeenCalledWith("reset_profile", { id: "windows-default" });
     await ipc.setPaused(true);
     expect(invoke).toHaveBeenCalledWith("set_paused", { paused: true });
     await ipc.getStatus();

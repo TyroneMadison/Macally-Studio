@@ -137,6 +137,14 @@ fn read_profile(path: &Path) -> anyhow::Result<Profile> {
     Ok(p)
 }
 
+/// The shipped built-ins, flagged `builtin`.
+fn builtins() -> impl Iterator<Item = Profile> {
+    BUILTINS.iter().map(|text| {
+        let p: Profile = serde_json::from_str(text).expect("shipped built-in profiles parse");
+        Profile { builtin: true, ..p }
+    })
+}
+
 pub struct Store {
     pub data_dir: PathBuf,
 }
@@ -193,10 +201,9 @@ impl Store {
         read_profile(&self.path(id)?)
     }
 
+    /// `builtin` follows the id: a save can neither lock a profile nor lift a built-in's delete guard.
     pub fn save_profile(&self, p: &Profile) -> anyhow::Result<()> {
-        let read_only = p.builtin || self.get_profile(&p.id).is_ok_and(|old| old.builtin);
-        ensure!(!read_only, "built-in profiles are read-only; duplicate it to edit");
-        self.write(p)
+        self.write(&Profile { builtin: builtins().any(|b| b.id == p.id), ..p.clone() })
     }
 
     pub fn delete_profile(&self, id: &str) -> anyhow::Result<()> {
@@ -232,15 +239,21 @@ impl Store {
         Ok(())
     }
 
-    /// Writes the shipped built-ins on every launch so app updates refresh them.
-    /// They are read-only, so nothing a user made is overwritten.
+    /// Writes a shipped built-in only when its file is missing or unreadable, so edits survive updates.
     pub fn ensure_builtins(&self) -> anyhow::Result<()> {
-        for text in BUILTINS {
-            let mut p: Profile = serde_json::from_str(text)?;
-            p.builtin = true;
-            self.write(&p)?;
+        for p in builtins() {
+            if self.get_profile(&p.id).is_err() {
+                self.write(&p)?;
+            }
         }
         Ok(())
+    }
+
+    /// Puts a built-in back the way it shipped; refuses every other profile.
+    pub fn reset_profile(&self, id: &str) -> anyhow::Result<Profile> {
+        let p = builtins().find(|p| p.id == id).with_context(|| format!("{id:?} is not a built-in profile"))?;
+        self.write(&p)?;
+        Ok(p)
     }
 
     /// A file we cannot read back (typo, newer schema) moves to settings.json.bak

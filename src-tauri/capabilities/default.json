@@ -17,6 +17,7 @@
     "global-shortcut:allow-is-registered",
     "dialog:allow-open",
     "dialog:allow-save",
+    "dialog:allow-message",
     "opener:default",
     { "identifier": "opener:allow-open-url", "allow": [{ "url": "x-apple.systempreferences:*" }] },
     { "identifier": "opener:allow-open-path", "allow": [{ "path": "**" }] },

@@ -84,14 +84,40 @@ fn rejects_path_like_ids() {
 }
 
 #[test]
-fn builtins_are_read_only() {
-    let st = temp_store("ro");
-    let mut p = profile("windows-default");
-    p.builtin = true;
-    st.write(&p).unwrap();
-    assert!(st.save_profile(&p).is_err());
-    assert!(st.save_profile(&profile("windows-default")).is_err());
+fn builtins_are_editable_but_not_deletable() {
+    let st = temp_store("edit");
+    st.ensure_builtins().unwrap();
+    st.save_profile(&profile("windows-default")).unwrap(); // arrives with builtin: false
+    let saved = st.get_profile("windows-default").unwrap();
+    assert!(saved.builtin);
+    assert_eq!(saved.bindings, profile("photo").bindings);
     assert!(st.delete_profile("windows-default").is_err());
+    let mut p = profile("photo");
+    p.builtin = true; // a user profile cannot lock itself
+    st.save_profile(&p).unwrap();
+    st.delete_profile("photo").unwrap();
+}
+
+#[test]
+fn edits_to_a_builtin_survive_restarts_until_reset() {
+    let st = temp_store("reset");
+    st.ensure_builtins().unwrap();
+    let shipped = st.get_profile("windows-default").unwrap();
+    let mut edited = shipped.clone();
+    edited.bindings.clear();
+    st.save_profile(&edited).unwrap();
+    st.ensure_builtins().unwrap(); // next launch
+    assert!(st.get_profile("windows-default").unwrap().bindings.is_empty());
+    assert_eq!(st.reset_profile("windows-default").unwrap(), shipped);
+    assert_eq!(st.get_profile("windows-default").unwrap(), shipped);
+}
+
+#[test]
+fn reset_refuses_user_profiles() {
+    let st = temp_store("reset-mine");
+    st.save_profile(&profile("photo")).unwrap();
+    assert!(st.reset_profile("photo").is_err());
+    assert_eq!(st.get_profile("photo").unwrap(), profile("photo"));
 }
 
 #[test]
@@ -161,10 +187,10 @@ fn unreadable_settings_are_backed_up_not_lost() {
 }
 
 #[test]
-fn builtins_install_read_only_with_spec_bindings() {
+fn builtins_install_with_spec_bindings() {
     let st = temp_store("builtins");
     st.ensure_builtins().unwrap();
-    st.ensure_builtins().unwrap(); // second launch rewrites, never duplicates
+    st.ensure_builtins().unwrap(); // second launch never duplicates
     assert_eq!(st.list_profiles().unwrap().len(), 2);
 
     let win = st.get_profile("windows-default").unwrap();

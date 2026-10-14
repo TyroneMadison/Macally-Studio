@@ -271,7 +271,7 @@ a:hover { color: #7faaff; }
 .gate-card p { line-height: 1.5; }
 .gate-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 12px; background: var(--raised); border: 1px solid var(--border); }
 
-/* Chord field (Inspector, action picker) */
+/* Chord field (action picker) and the Inspector's Remap to row */
 .chord { display: flex; gap: 8px; }
 .chord > .input { flex: 1; min-width: 0; }
 .chord .btn { height: 38px; }
@@ -350,19 +350,12 @@ a:hover { color: #7faaff; }
 .insp-type { flex: none; padding: 4px 8px; border-radius: 6px; background: #2a2a2f; border: 1px solid #3a3a42; font-family: var(--font-mono); font-size: 12px; color: #fff; }
 .insp-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .insp-detail { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
-.insp-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.insp-pills button {
-  height: 30px; padding: 0 11px; border-radius: 8px; cursor: pointer;
-  border: 1px solid #3a3a42; background: var(--raised); color: #c9c9cf; font: inherit; font-weight: 600; font-size: 12px;
-}
-.insp-pills button[aria-pressed="true"] { border-color: var(--primary); background: rgba(76, 141, 255, 0.16); color: #fff; }
-.insp-pills button:disabled { opacity: 0.45; cursor: default; }
 .insp-field { display: flex; flex-direction: column; gap: 8px; }
 .insp-field .muted { font-size: 12px; }
 .insp-spacer { flex: 1; }
 .insp-actions { display: flex; gap: 8px; }
 .insp-actions .btn { height: 40px; padding: 0 14px; font-size: 14px; }
-.insp-actions .btn.primary { flex: 1; }
+.insp-actions .btn { flex: 1; }
 .insp button:focus-visible, .insp select:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .km {
   display: flex; flex-direction: column; gap: 4px; padding: 10px 12px;

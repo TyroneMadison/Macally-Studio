@@ -8,6 +8,8 @@ export const getProfiles = () => invoke<Profile[]>("get_profiles");
 export const getProfile = (id: string) => invoke<Profile>("get_profile", { id });
 export const saveProfile = (profile: Profile) => invoke<void>("save_profile", { profile });
 export const deleteProfile = (id: string) => invoke<void>("delete_profile", { id });
+/** Puts a built-in profile back to its shipped bindings. */
+export const resetProfile = (id: string) => invoke<void>("reset_profile", { id });
 export const duplicateProfile = (id: string) => invoke<Profile>("duplicate_profile", { id });
 export const importProfile = (path: string) => invoke<Profile>("import_profile", { path });
 export const exportProfile = (id: string, path: string) => invoke<void>("export_profile", { id, path });

@@ -39,7 +39,8 @@ describe("Keyboard view", () => {
   it("lights the active profile's keys and mounts the Inspector", () => {
     const html = renderToStaticMarkup(<Keyboard store={store("mine")} />);
     expect(html).toContain('data-bound="F13,F14" data-legends="win"');
-    expect(html).toContain("Click a key to inspect it.");
+    expect(html).toContain("Click a key on the keyboard, or press");
+    expect(html).toContain('<button type="button" class="btn" aria-pressed="false">Pick key by pressing</button>');
     expect(html).toContain("Press any key to see what the OS reports");
     expect(html).toContain("Tip: press fn + esc so the top row sends F1-F15");
   });

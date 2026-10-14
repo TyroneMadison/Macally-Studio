@@ -25,14 +25,14 @@ Remap keys, launch apps and Steam games, and switch profiles automatically, on W
 
 <table>
   <tr>
-    <td width="33%" valign="top"><b>Remap any key</b><br>Turn any key the computer can see into another key or a chord such as <kbd>Ctrl</kbd>+<kbd>Z</kbd>. Add "only when held with" modifiers for a second set of bindings.</td>
+    <td width="33%" valign="top"><b>Remap any key</b><br>Select a key by clicking it or pressing it, then press the key or chord it should send (such as <kbd>Ctrl</kbd>+<kbd>Z</kbd>) or choose one from the list. It saves at once. Add "only when held with" modifiers for a second set of bindings.</td>
     <td width="33%" valign="top"><b>Profiles</b><br>Switch by hand, by hotkey (next, previous, or one per profile), or automatically when a chosen app comes to the front.</td>
     <td width="33%" valign="top"><b>Launch any app</b><br>Desktop apps, Microsoft Store apps and system apps such as Calculator, Clock and Settings on Windows; every app on macOS. Searchable, with icons.</td>
   </tr>
   <tr>
     <td valign="top"><b>Steam games</b><br>Your whole Steam library, found automatically. One key, one game.</td>
     <td valign="top"><b>Open and run</b><br>Bind a website, file, folder or command line. Commands can run hidden.</td>
-    <td valign="top"><b>3D keyboard</b><br>A to-scale model of the keyboard. Click a key to bind it, spin it a full 360°, tilt it, zoom to 150 %. Bound keys glow; adjustable brightness and backlight; Mac or Windows legends.</td>
+    <td valign="top"><b>3D keyboard</b><br>A to-scale model of the keyboard. Click a key to bind it (or press it with Pick key by pressing), spin it a full 360°, tilt it, zoom to 150 %. Bound keys glow; adjustable brightness and backlight; Mac or Windows legends.</td>
   </tr>
   <tr>
     <td valign="top"><b>Key Monitor and Record</b><br>See exactly what the system reports for any key, and capture a chord by pressing it.</td>
@@ -57,7 +57,7 @@ Download from the [latest release](https://github.com/TyroneMadison/Macally-Stud
 
 1. Download the file ending in `_x64-setup.exe` (the `.msi` works too).
 2. Run it. The installer is not code-signed yet, so SmartScreen may say "Windows protected your PC": click **More info**, then **Run anyway**.
-3. Press **fn + esc** once on the keyboard (Fn-Lock) so the top row sends F1–F15. Macally Studio opens with the **Windows Default** profile: command works as Ctrl, option as Alt, F3 opens Task View, F4 the Start menu, F7–F12 control media and volume, F13 takes a screenshot, F14 opens Calculator and F15 opens Clock.
+3. Press **fn + esc** once on the keyboard (Fn-Lock) so the top row sends F1–F15. Macally Studio opens with the **Windows Default** profile: command works as Ctrl, option as Alt, F3 opens Task View, F4 the Start menu, F7–F12 control media and volume, F13 takes a screenshot, F14 opens Calculator and F15 opens Clock. Edit it as you like; **Profiles → Restore defaults** brings back these bindings.
 4. Want remaps inside apps that run as administrator? Turn on **Settings → Run as administrator**.
 
 ### macOS

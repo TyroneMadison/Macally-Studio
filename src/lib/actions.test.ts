@@ -1,17 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
+  chordRecorder,
   describeAction,
   entryGroup,
   entryToAction,
   formatChord,
   isComplete,
   joinArgs,
+  KEY_GROUPS,
+  keyLabel,
   launchOf,
   modAlias,
   parseChord,
   recordStep,
   splitArgs,
 } from "./actions";
+import { KEY_CODES } from "./keycodes";
 import type { AppEntry, KeyEvent } from "./types";
 
 const ev = (code: string, down = true, mods: string[] = []): KeyEvent => ({ code, down, mods, raw: "" });
@@ -72,8 +76,43 @@ describe("recordStep", () => {
   });
 });
 
+describe("chordRecorder", () => {
+  it("keeps modifiers across events and finishes once", () => {
+    const got: string[][] = [];
+    const onKey = chordRecorder((k) => got.push(k));
+    expect(onKey(ev("ControlLeft"))).toBe(false);
+    expect(onKey(ev("KeyZ"))).toBe(true);
+    expect(got).toEqual([["Ctrl", "KeyZ"]]);
+  });
+});
+
+describe("key list", () => {
+  it("lists every sendable key exactly once", () => {
+    const listed = KEY_GROUPS.flatMap((g) => g.codes);
+    expect(listed).toHaveLength(KEY_CODES.length);
+    expect(new Set(listed)).toEqual(new Set(KEY_CODES));
+  });
+
+  it("groups and labels keys the way people look for them", () => {
+    const group = (code: string) => KEY_GROUPS.find((g) => g.codes.includes(code))?.label;
+    expect(KEY_GROUPS.map((g) => g.label)).toEqual([
+      "Letters", "Numbers", "Function keys", "Modifiers", "Navigation & editing", "Numpad", "Media & volume", "Symbols",
+    ]);
+    expect(KEY_GROUPS[0].codes.slice(0, 3)).toEqual(["KeyA", "KeyB", "KeyC"]);
+    expect(KEY_GROUPS[2].codes).toHaveLength(15);
+    expect(["ShiftRight", "Fn", "Escape", "ArrowUp", "NumLock", "AudioVolumeUp", "Semicolon"].map(group)).toEqual([
+      "Modifiers", "Modifiers", "Navigation & editing", "Navigation & editing", "Numpad", "Media & volume", "Symbols",
+    ]);
+    expect(keyLabel("ControlRight", false)).toBe("Right Ctrl");
+    expect(keyLabel("MetaLeft", true)).toBe("Left Cmd");
+    expect(keyLabel("Semicolon", false)).toBe("Semicolon ;");
+    expect(keyLabel("MediaPlayPause", false)).toBe("Play/Pause");
+    expect(keyLabel("KeyQ", false)).toBe("Q");
+  });
+});
+
 describe("picker helpers", () => {
-  it("treats the pill templates as incomplete", () => {
+  it("treats unfilled actions as incomplete", () => {
     expect(isComplete({ type: "key_combo", keys: [] })).toBe(false);
     expect(isComplete({ type: "key_combo", keys: ["Ctrl", "Sfit"] })).toBe(false);
     expect(isComplete({ type: "key_combo", keys: ["Win", "Shift", "KeyS"] })).toBe(true);

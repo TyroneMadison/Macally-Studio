@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { save } from "@tauri-apps/plugin-dialog";
+import { useEffect, useState } from "react";
+import { confirm, save } from "@tauri-apps/plugin-dialog";
 import AppRulePicker from "../components/AppRulePicker";
 import HotkeyField from "../components/HotkeyField";
-import { deleteProfile, duplicateProfile, exportProfile } from "../lib/ipc";
+import { deleteProfile, duplicateProfile, exportProfile, resetProfile } from "../lib/ipc";
 import { actionLabel, initials, ruleFor } from "../lib/profile";
 import type { AppState } from "../lib/state";
 import type { Profile } from "../lib/types";
@@ -20,7 +20,7 @@ export default function ProfileDetail({ store, profile: p, onSelect, onEditKeys 
   const [picking, setPicking] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const readOnly = p.builtin;
+  useEffect(() => setName(p.name), [p.name]); // Restore defaults can rename it back
   const active = store.activeProfile?.id === p.id;
   const legend = store.settings.windowsLegends ? "win" : "mac";
 
@@ -61,6 +61,17 @@ export default function ProfileDetail({ store, profile: p, onSelect, onEditKeys 
     });
     if (path) await exportProfile(p.id, path);
   };
+  const restore = async () => {
+    // the dialog plugin, not window.confirm: macOS webviews answer that with false and show nothing
+    const ok = await confirm(`Put ${p.name} back the way it shipped? Your changes to it will be lost.`, {
+      title: "Restore defaults",
+      kind: "warning",
+      okLabel: "Restore",
+    });
+    if (!ok) return;
+    await resetProfile(p.id);
+    await store.refresh();
+  };
   const remove = async () => {
     await deleteProfile(p.id);
     await store.refresh();
@@ -78,7 +89,6 @@ export default function ProfileDetail({ store, profile: p, onSelect, onEditKeys 
             id="profile-name"
             className="input strong"
             value={name}
-            disabled={readOnly}
             onChange={(e) => setName(e.target.value)}
             onBlur={rename}
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
@@ -92,25 +102,19 @@ export default function ProfileDetail({ store, profile: p, onSelect, onEditKeys 
           <div key={rule} className="rule">
             <span className="glyph xs">{initials(appName(rule))}</span>
             <span className="grow strong">{appName(rule)} is in front</span>
-            {!readOnly && (
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label={`Remove ${appName(rule)}`}
-                onClick={() => update({ autoApps: p.autoApps.filter((r) => r !== rule) })}
-              >
-                ×
-              </button>
-            )}
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label={`Remove ${appName(rule)}`}
+              onClick={() => update({ autoApps: p.autoApps.filter((r) => r !== rule) })}
+            >
+              ×
+            </button>
           </div>
         ))}
-        {readOnly ? (
-          p.autoApps.length === 0 && <div className="muted small">Duplicate this profile to add app rules.</div>
-        ) : (
-          <button type="button" className="btn dashed" onClick={() => setPicking(true)}>
-            + Add app rule
-          </button>
-        )}
+        <button type="button" className="btn dashed" onClick={() => setPicking(true)}>
+          + Add app rule
+        </button>
       </div>
 
       <div className="field">
@@ -120,7 +124,6 @@ export default function ProfileDetail({ store, profile: p, onSelect, onEditKeys 
         <HotkeyField
           id="profile-hotkey"
           value={p.hotkey ?? ""}
-          disabled={readOnly}
           onChange={(v) => update({ hotkey: v || null })}
         />
       </div>
@@ -166,7 +169,11 @@ export default function ProfileDetail({ store, profile: p, onSelect, onEditKeys 
         <button type="button" className="btn" onClick={() => run(exportFile())}>
           Export
         </button>
-        {!readOnly && (
+        {p.builtin ? (
+          <button type="button" className="btn" onClick={() => run(restore())}>
+            Restore defaults
+          </button>
+        ) : (
           <button
             type="button"
             className="btn danger"

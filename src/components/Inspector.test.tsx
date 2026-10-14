@@ -40,7 +40,7 @@ const render = (keyCode: string | null, profile: Profile = mine) =>
       keyCode={keyCode}
       layout={layout}
       profile={profile}
-      onChange={() => {}}
+      onChange={async () => {}}
       catalog={[calc]}
       profiles={[profile]}
       lastKey={null}
@@ -48,9 +48,9 @@ const render = (keyCode: string | null, profile: Profile = mine) =>
   );
 
 describe("Inspector", () => {
-  it("asks for a key when nothing is selected and still shows the monitor", () => {
+  it("explains both ways to pick a key and still shows the monitor", () => {
     const html = render(null);
-    expect(html).toContain("Click a key to inspect it.");
+    expect(html).toContain("Click a key on the keyboard, or press &#x27;Pick key by pressing&#x27; and press it.");
     expect(html).toContain("Press any key to see what the OS reports");
   });
 
@@ -59,20 +59,33 @@ describe("Inspector", () => {
     expect(html).toContain("Currently bound to");
     expect(html).toContain('<span class="insp-title">Calculator</span>');
     expect(html).toContain('<option value="Shift" selected="">Shift</option>');
-    expect(html).toContain('aria-pressed="true">App</button>');
-    expect(html).toContain('class="btn primary" disabled="">Save binding');
+    expect(html).toContain(">More actions…</button>");
+    expect(html).toContain('<button type="button" class="btn">Reset key</button>');
   });
 
-  it("edits a key combo inline", () => {
+  it("offers Press a key and the key list, showing a single-key binding in the list", () => {
+    const html = render("F3", { ...mine, bindings: { F3: { mods: [], action: { type: "key_combo", keys: ["KeyQ"] } } } });
+    expect(html).toContain('<button type="button" class="btn primary" aria-pressed="false">Press a key</button>');
+    expect(html).toContain('<optgroup label="Letters">');
+    expect(html).toContain('<option value="KeyQ" selected="">Q</option>');
+  });
+
+  it("leaves the list on its prompt for a chord", () => {
     const html = render("F3");
     expect(html).toContain('<span class="insp-title">Win + Tab</span>');
-    expect(html).toContain('id="insp-chord"');
-    expect(html).toContain('value="Win + Tab"');
+    expect(html).toContain('<option value="" disabled="" selected="">Choose a key…</option>');
   });
 
-  it("locks editing on built-in profiles", () => {
+  it("edits built-in profiles like any other", () => {
     const html = render("F14", { ...mine, builtin: true });
-    expect(html).toContain("Built-in profiles are read-only");
+    expect(html).not.toContain("read-only");
+    expect(html).not.toMatch(/<(button|select)[^>]* disabled=""/);
+  });
+
+  it("has nothing to reset or hold on an unbound key", () => {
+    const html = render("F3", { ...mine, bindings: {} });
+    expect(html).toContain("Not remapped");
     expect(html).toContain('<select id="insp-held" class="input" disabled="">');
+    expect(html).toContain('<button type="button" class="btn" disabled="">Reset key</button>');
   });
 });

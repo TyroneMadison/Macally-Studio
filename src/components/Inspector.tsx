@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ActionPicker from "./ActionPicker";
-import ChordField from "./ChordField";
 import KeyMonitor from "./KeyMonitor";
-import { describeAction, formatChord, isComplete, isMac } from "../lib/actions";
-import type { Action, AppEntry, Binding, KeyEvent, Layout, Modifier, Profile } from "../lib/types";
+import { chordRecorder, describeAction, formatChord, isMac, KEY_GROUPS, keyLabel } from "../lib/actions";
+import { KEY_CODES } from "../lib/keycodes";
+import { useRecord } from "../lib/record";
+import type { AppEntry, Binding, KeyEvent, Layout, Modifier, Profile } from "../lib/types";
 
 export type InspectorProps = {
   keyCode: string | null;
   layout: Layout;
   profile: Profile;
-  onChange: (p: Profile) => void;
+  onChange: (p: Profile) => Promise<void>;
   catalog: AppEntry[];
   profiles: Profile[];
   lastKey: KeyEvent | null;
@@ -24,26 +25,16 @@ const HELD: { value: Modifier | ""; label: string }[] = [
   { value: "Meta", label: isMac ? "Command" : "Win" },
 ];
 
-/** Key / Combo edits inline; every other pill opens the picker on its tab (empty template or current action). */
-const PILLS: { label: string; types: Action["type"][]; template: Action }[] = [
-  { label: "Key / Combo", types: ["key_combo"], template: { type: "key_combo", keys: [] } },
-  { label: "App", types: ["launch_app"], template: { type: "launch_app", app: { kind: "path", path: "", args: "" } } },
-  { label: "Steam game", types: ["steam_game"], template: { type: "steam_game", appid: 0, name: "" } },
-  { label: "URL / File", types: ["open"], template: { type: "open", target: "" } },
-  { label: "Command", types: ["command"], template: { type: "command", program: "", args: [], hidden: true } },
-  { label: "Profile", types: ["switch_profile", "pause_toggle"], template: { type: "switch_profile", profile: "" } },
-];
-
 export default function Inspector(props: InspectorProps) {
   const { keyCode, profile, lastKey } = props;
   return (
     <aside className="kb-panel insp" aria-label="Key inspector">
       {keyCode ? (
-        // keyed: switching key or profile drops any unsaved edit
+        // keyed: switching key or profile ends a recording and drops the "Saved" note
         <KeyEditor key={`${profile.id}/${keyCode}`} {...props} keyCode={keyCode} />
       ) : (
         <>
-          <p className="muted">Click a key to inspect it.</p>
+          <p className="muted">Click a key on the keyboard, or press 'Pick key by pressing' and press it.</p>
           <div className="insp-spacer" />
         </>
       )}
@@ -52,25 +43,41 @@ export default function Inspector(props: InspectorProps) {
   );
 }
 
+/** Every change saves at once through `onChange`. */
 function KeyEditor({ keyCode, layout, profile, onChange, catalog, profiles }: InspectorProps & { keyCode: string }) {
-  const saved: Binding | undefined = profile.bindings[keyCode];
-  const [draft, setDraft] = useState<Binding | null>(null); // unsaved edit
-  const [picking, setPicking] = useState<Action | null>(null);
-  const shown = draft ?? saved;
-  const mods = shown?.mods ?? [];
+  const binding: Binding | undefined = profile.bindings[keyCode];
+  const mods = binding?.mods ?? [];
+  const [recording, setRecording] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [savedAt, setSavedAt] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const key = layout.keys.find((k) => k.code === keyCode);
-  const summary = describeAction(shown?.action, catalog, profiles);
-  const readOnly = profile.builtin;
-
-  const edit = (action: Action) => setDraft((d) => ({ mods: (d ?? saved)?.mods ?? [], action }));
+  const summary = describeAction(binding?.action, catalog, profiles);
+  const sends = binding?.action.type === "key_combo" ? binding.action.keys : [];
+  const listed = sends.length === 1 && KEY_CODES.includes(sends[0]) ? sends[0] : "";
 
   function commit(b: Binding | null) {
     const bindings = { ...profile.bindings };
     if (b) bindings[keyCode] = b;
     else delete bindings[keyCode];
-    onChange({ ...profile, bindings });
-    setDraft(null);
+    setError(null);
+    onChange({ ...profile, bindings }).then(
+      () => setSavedAt(Date.now()),
+      (e) => setError(String(e)),
+    );
   }
+  const send = (keys: string[]) => commit({ mods, action: { type: "key_combo", keys } });
+
+  useRecord(
+    recording,
+    () => chordRecorder((keys) => keys.join() !== "Escape" && send(keys)), // a bare Esc cancels
+    () => setRecording(false),
+  );
+  useEffect(() => {
+    if (!savedAt) return;
+    const t = setTimeout(() => setSavedAt(0), 1500);
+    return () => clearTimeout(t);
+  }, [savedAt]);
 
   return (
     <>
@@ -86,7 +93,7 @@ function KeyEditor({ keyCode, layout, profile, onChange, catalog, profiles }: In
       {key?.verify && <p className="muted">OS code not yet confirmed on hardware.</p>}
 
       <div className="insp-card">
-        <div className="kb-label">{draft ? "Not saved yet" : "Currently bound to"}</div>
+        <div className="kb-label">Currently bound to</div>
         <div className="insp-bound">
           <span className="insp-type">{summary.type}</span>
           <span className="insp-title">{summary.title}</span>
@@ -95,39 +102,43 @@ function KeyEditor({ keyCode, layout, profile, onChange, catalog, profiles }: In
         {mods.length > 0 && <span className="muted">Only while holding {formatChord(mods)}</span>}
       </div>
 
-      <div>
-        <div className="kb-label" id="insp-types">Action type</div>
-        <div className="insp-pills" role="group" aria-labelledby="insp-types">
-          {PILLS.map((p) => {
-            const on = shown !== undefined && p.types.includes(shown.action.type);
-            const current = on && shown ? shown.action : p.template;
-            return (
-              <button
-                key={p.label}
-                type="button"
-                aria-pressed={on}
-                disabled={readOnly}
-                onClick={() => (p.types[0] === "key_combo" ? edit(current) : setPicking(current))}
-              >
-                {p.label}
-              </button>
-            );
-          })}
+      <div className="insp-field">
+        <div className="kb-label">Remap to</div>
+        <div className="chord">
+          <button
+            type="button"
+            className={recording ? "btn rec" : "btn primary"}
+            aria-pressed={recording}
+            onClick={() => setRecording((r) => !r)}
+          >
+            {recording ? "Press any key…" : "Press a key"}
+          </button>
+          <select
+            className="input"
+            aria-label="Key to send"
+            value={listed}
+            onChange={(e) => send([e.target.value])}
+          >
+            <option value="" disabled>
+              Choose a key…
+            </option>
+            {KEY_GROUPS.map((g) => (
+              <optgroup key={g.label} label={g.label}>
+                {g.codes.map((c) => (
+                  <option key={c} value={c}>
+                    {keyLabel(c)}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
         </div>
+        <p className="muted">
+          {recording
+            ? "Press the key or shortcut it should send. Esc cancels."
+            : "Press the key or shortcut it should send, or choose one from the list."}
+        </p>
       </div>
-
-      {shown?.action.type === "key_combo" && (
-        <div className="insp-field">
-          <label className="kb-label" htmlFor="insp-chord">Send keys</label>
-          <ChordField
-            id="insp-chord"
-            initial={shown.action.keys}
-            disabled={readOnly}
-            onChange={(keys) => edit({ type: "key_combo", keys })}
-          />
-          <p className="muted">Click Record, then press the keys you want this key to send.</p>
-        </div>
-      )}
 
       <div className="insp-field">
         <label className="kb-label" htmlFor="insp-held">Only when held with</label>
@@ -135,10 +146,10 @@ function KeyEditor({ keyCode, layout, profile, onChange, catalog, profiles }: In
           id="insp-held"
           className="input"
           value={mods[0] ?? ""}
-          disabled={readOnly || !shown}
+          disabled={!binding}
           onChange={(e) => {
             const m = e.target.value as Modifier | "";
-            if (shown) setDraft({ mods: m ? [m] : [], action: shown.action });
+            if (binding) commit({ mods: m ? [m] : [], action: binding.action });
           }}
         >
           {HELD.map((h) => (
@@ -149,39 +160,30 @@ function KeyEditor({ keyCode, layout, profile, onChange, catalog, profiles }: In
         </select>
       </div>
 
-      {readOnly && <p className="muted">Built-in profiles are read-only. Duplicate it in Profiles to edit.</p>}
-      <div className="insp-spacer" />
-
       <div className="insp-actions">
-        <button
-          type="button"
-          className="btn primary"
-          disabled={readOnly || !draft || !isComplete(draft.action)}
-          onClick={() => draft && commit(draft)}
-        >
-          Save binding
+        <button type="button" className="btn" onClick={() => setPicking(true)}>
+          More actions…
         </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={readOnly || (!saved && !draft)}
-          onClick={() => (saved ? commit(null) : setDraft(null))}
-        >
-          Clear
+        <button type="button" className="btn" disabled={!binding} onClick={() => commit(null)}>
+          Reset key
         </button>
       </div>
+      <p className={error ? "error small" : "muted small"} role="status">
+        {error ?? (savedAt ? "Saved" : "")}
+      </p>
+      <div className="insp-spacer" />
 
       <ActionPicker
-        open={picking !== null}
+        open={picking}
         keyCode={keyCode}
-        initial={picking ?? undefined}
+        initial={binding?.action}
         catalog={catalog}
         profiles={profiles}
         onPick={(a) => {
-          setPicking(null);
-          commit({ mods, action: a }); // "Bind to <key>" saves straight away
+          setPicking(false);
+          commit({ mods, action: a });
         }}
-        onClose={() => setPicking(null)}
+        onClose={() => setPicking(false)}
       />
     </>
   );

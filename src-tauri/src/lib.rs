@@ -58,6 +58,7 @@ pub fn run() {
             commands::get_profiles,
             commands::get_profile,
             commands::save_profile,
+            commands::reset_profile,
             commands::delete_profile,
             commands::duplicate_profile,
             commands::import_profile,
