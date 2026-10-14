@@ -7,7 +7,8 @@ export const PITCH_MIN = (5 * Math.PI) / 180; // almost straight down
 export const PITCH_MAX = (80 * Math.PI) / 180; // stays above the horizon, so the underside never shows
 export const ZOOM_MIN = 1;
 export const ZOOM_MAX = 2.5;
-export const DEFAULT_VIEW: View3D = { yaw: (-14 * Math.PI) / 180, pitch: 0.9, zoom: 1 };
+// 100% keeps the whole board in view at any angle; the default starts closer for the usual front view.
+export const DEFAULT_VIEW: View3D = { yaw: (-14 * Math.PI) / 180, pitch: 0.9, zoom: 1.4 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
