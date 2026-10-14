@@ -1,8 +1,9 @@
-pub mod steam;
-pub mod windows;
-
 // App catalog: Start-menu apps (Windows) or app bundles (macOS) plus the Steam library.
 // The id prefix carries the picker section: "builtin:" / "app:" / "steam:".
+
+pub mod macos;
+pub mod steam;
+pub mod windows;
 
 use std::collections::HashSet;
 
