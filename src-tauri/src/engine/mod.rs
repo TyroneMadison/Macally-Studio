@@ -14,6 +14,9 @@ use crate::commands::EngineLike;
 use crate::keymap;
 use crate::profiles::{Modifier, Profile};
 
+#[cfg(target_os = "windows")]
+pub mod windows;
+
 #[cfg(test)]
 mod tests;
 

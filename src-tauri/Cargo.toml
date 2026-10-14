@@ -7,6 +7,7 @@ license = "MIT"
 repository = "https://github.com/TyroneMadison/Macally-Studio"
 edition = "2024"
 rust-version = "1.90"
+default-run = "macally-studio"
 
 [lib]
 name = "macally_studio_lib"
@@ -77,3 +78,12 @@ objc2-app-kit = { version = "0.3.2", features = [
 ] }
 block2 = "0.6.2"
 plist = "1.10.1"
+
+[features]
+# builds src/bin/hook-selftest.rs; without it `tauri build` leaves the binary out of the installer
+selftest = []
+
+[[bin]]
+name = "hook-selftest"
+path = "src/bin/hook-selftest.rs"
+required-features = ["selftest"]

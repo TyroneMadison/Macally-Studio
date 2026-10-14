@@ -30,7 +30,7 @@ Run the same checks CI runs:
 ```sh
 npm test
 npm run build
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --features selftest -- -D warnings
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
