@@ -85,3 +85,45 @@ h1 { font-size: 18px; font-weight: 600; margin: 0 0 12px; }
 .rail-btn.active { background: var(--raised); color: var(--primary); }
 .rail-btn.pause.on { color: var(--ok); }
 .rail-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Keyboard view */
+.kb { display: flex; flex-direction: column; gap: 16px; height: 100%; min-height: 0; }
+.kb-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.kb-head h1 { margin: 0; }
+.kb-spacer { flex: 1; }
+.kb-body { flex: 1; min-height: 0; display: flex; gap: 20px; flex-wrap: wrap; }
+.kb-stage {
+  flex: 999 1 600px; min-width: 0; min-height: 420px;
+  display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+}
+.kb-canvas { flex: 1; min-height: 0; position: relative; }
+.kb-hint { position: absolute; right: 20px; top: 16px; color: var(--muted); font-size: 12px; font-weight: 600; pointer-events: none; }
+.kb-bar {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding: 12px 20px; border-top: 1px solid var(--border); background: #141416;
+}
+.kb-bar label { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.kb-bar input[type="range"] { width: 160px; accent-color: var(--led); }
+.kb-panel {
+  flex: 1 1 300px; max-width: 380px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px;
+}
+.kb-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.kb-code { font-size: 20px; color: var(--text); }
+.mono { font-family: var(--font-mono); color: var(--text); min-width: 40px; }
+.muted { color: var(--muted); margin: 0; }
+.btn {
+  height: 32px; padding: 0 12px; border-radius: 8px;
+  border: 1px solid #3a3a42; background: var(--raised); color: var(--text);
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.btn:hover { border-color: var(--muted); }
+.seg { display: flex; padding: 3px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.seg button {
+  height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid transparent;
+  background: transparent; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: #2a2a2f; border-color: #3a3a42; color: var(--text); }
+.btn:focus-visible, .seg button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

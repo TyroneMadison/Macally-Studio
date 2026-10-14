@@ -1,3 +1,5 @@
+pub mod commands;
+pub mod keymap;
 pub mod version;
 
 use tauri::Manager;
@@ -23,7 +25,7 @@ pub fn run() {
             Some(vec!["--minimized"]),
         ))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![commands::get_layout])
         .run(tauri::generate_context!())
         .expect("error while running Macally Studio");
 }
