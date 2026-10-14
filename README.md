@@ -69,7 +69,7 @@ Download from the [latest release](https://github.com/TyroneMadison/Macally-Stud
    ```sh
    xattr -cr "/Applications/Macally Studio.app"
    ```
-5. Allow **Accessibility** and **Input Monitoring** when asked. Remapping starts by itself a few seconds after both are on; until then **Settings → Permissions and device** shows "Needed". The app starts with the **macOS Default** profile, which leaves every key as it is.
+5. Allow **Accessibility** and **Input Monitoring** when asked. Until both are on, the app shows a permissions screen with buttons that open each System Settings pane. It closes by itself and remapping starts a few seconds after both are on. The app starts with the **macOS Default** profile, which leaves every key as it is.
 
 ## Known limits
 
