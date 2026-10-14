@@ -41,7 +41,7 @@ mod win {
     /// Counts would-be injections instead of typing anything.
     struct Counter;
     impl Platform for Counter {
-        fn send_combo(&self, _keys: &[String], _down: bool) {
+        fn send_combo(&self, _keys: &[String], _down: bool, _lift: engine::ModMask) {
             COMBOS.fetch_add(1, Ordering::SeqCst);
         }
     }

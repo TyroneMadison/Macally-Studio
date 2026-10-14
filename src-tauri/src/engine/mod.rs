@@ -70,6 +70,11 @@ pub fn mod_bit(code: &str) -> ModMask {
     }
 }
 
+/// The modifiers a chord presses itself.
+fn combo_mask(keys: &[String]) -> ModMask {
+    keys.iter().fold(0, |m, k| m | mod_bit(k))
+}
+
 /// "Ctrl", "Alt", "Shift", "Meta": the Modifier names, also valid KeyCombo aliases.
 pub fn mod_names(m: ModMask) -> Vec<String> {
     [(CTRL, "Ctrl"), (ALT, "Alt"), (SHIFT, "Shift"), (META, "Meta")]
@@ -154,7 +159,9 @@ pub enum EngineMsg {
 
 /// What the engine needs from the OS: inject a chord. Tests pass a fake.
 pub trait Platform: Send + Sync {
-    fn send_combo(&self, keys: &[String], down: bool);
+    /// `lift`: modifiers held for the binding ("Only when held with") that the chord does not
+    /// press itself; the OS layer keeps them out of the chord if they would otherwise leak in.
+    fn send_combo(&self, keys: &[String], down: bool, lift: ModMask);
     /// False for a key this OS has no way to inject (brightness on Windows).
     fn can_send(&self, _key: &str) -> bool {
         true
@@ -164,8 +171,8 @@ pub trait Platform: Send + Sync {
 /// Per-key state; one lock, never held while injecting.
 #[derive(Default)]
 struct Live {
-    /// Keys whose down we acted on: their auto-repeat and key-up go to the same action.
-    held: HashMap<String, Action>,
+    /// Keys whose down we acted on, with their lift: auto-repeat and key-up reuse both.
+    held: HashMap<String, (Action, ModMask)>,
     last_fire: HashMap<String, Instant>,
     /// Record swallows modifiers, so the OS never sees them held; Record tracks them itself.
     record_mods: ModMask,
@@ -267,36 +274,44 @@ impl Engine {
             // release exactly what the matching key-down did, whatever changed since
             let released = live.held.remove(code);
             drop(live);
-            if let Some(Action::KeyCombo { keys }) = &released {
-                self.platform.send_combo(keys, false);
+            if let Some((Action::KeyCombo { keys }, lift)) = &released {
+                self.platform.send_combo(keys, false, *lift);
             }
             return released.is_some() || mode == Mode::Record;
         }
         if mode == Mode::Record {
             return true;
         }
-        let action = match live.held.get(code) {
-            Some(a) => a.clone(), // auto-repeat of a key we already own
+        let (action, lift) = match live.held.get(code) {
+            Some(h) => h.clone(), // auto-repeat of a key we already own
             None => {
                 if live.reserved.contains(&(code.to_string(), mods)) {
                     return false;
                 }
                 let table = self.table.read().unwrap();
-                // a remapped modifier (Cmd -> Ctrl) applies whatever else is held
-                let hit = table.lookup(code, mods).or_else(|| if bit != 0 { table.lookup(code, 0) } else { None });
-                match hit {
+                // a remapped modifier (Cmd -> Ctrl) applies whatever else is held, so lifts nothing
+                let (hit, with) = match table.lookup(code, mods) {
+                    None if bit != 0 => (table.lookup(code, 0), 0),
+                    hit => (hit, mods),
+                };
+                let action = match hit {
                     None | Some(Action::PassThrough) => return false,
                     // paused: only a PauseToggle key still works, or nothing could unpause
                     Some(a) if self.is_paused() && !matches!(a, Action::PauseToggle) => return false,
                     Some(a) => a.clone(),
-                }
+                };
+                let lift = match &action {
+                    Action::KeyCombo { keys } => with & !combo_mask(keys),
+                    _ => 0,
+                };
+                (action, lift)
             }
         };
         let fire = matches!(action, Action::KeyCombo { .. }) || debounce(&mut live.last_fire, code, now);
-        live.held.insert(code.to_string(), action.clone());
+        live.held.insert(code.to_string(), (action.clone(), lift));
         drop(live);
         match action {
-            Action::KeyCombo { keys } => self.platform.send_combo(&keys, true),
+            Action::KeyCombo { keys } => self.platform.send_combo(&keys, true, lift),
             other if fire => {
                 let _ = self.tx.send(EngineMsg::Run(other));
             }
@@ -334,8 +349,8 @@ impl EngineLike for Engine {
 struct OsPlatform;
 
 impl Platform for OsPlatform {
-    fn send_combo(&self, keys: &[String], down: bool) {
-        os::send_combo(keys, down);
+    fn send_combo(&self, keys: &[String], down: bool, lift: ModMask) {
+        os::send_combo(keys, down, lift);
     }
     fn can_send(&self, key: &str) -> bool {
         os::can_send(key)

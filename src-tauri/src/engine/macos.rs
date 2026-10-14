@@ -166,7 +166,8 @@ pub fn can_send(key: &str) -> bool {
 
 /// Down: keys pressed in order, each carrying the modifiers pressed so far.
 /// Up: released in reverse order. Media keys go out as NX_SYSDEFINED events.
-pub fn send_combo(keys: &[String], down: bool) {
+/// No lift needed: every posted event carries its own flags, so held modifiers cannot leak in.
+pub fn send_combo(keys: &[String], down: bool, _lift: ModMask) {
     let Some(source) = CGEventSource::new(CGEventSourceStateID::CombinedSessionState) else {
         return;
     };

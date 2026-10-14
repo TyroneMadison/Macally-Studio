@@ -9,11 +9,13 @@ use crate::profiles::Binding;
 #[derive(Default)]
 struct Fake {
     sent: Mutex<Vec<(Vec<String>, bool)>>,
+    lifts: Mutex<Vec<ModMask>>,
 }
 
 impl Platform for Arc<Fake> {
-    fn send_combo(&self, keys: &[String], down: bool) {
+    fn send_combo(&self, keys: &[String], down: bool, lift: ModMask) {
         self.sent.lock().unwrap().push((keys.to_vec(), down));
+        self.lifts.lock().unwrap().push(lift);
     }
     fn can_send(&self, key: &str) -> bool {
         key != "BrightnessUp" // like Windows: no key to inject
@@ -110,6 +112,21 @@ fn remapped_modifier_applies_with_other_mods_held() {
     let (e, fake, _rx) = engine(&profile(&[("MetaLeft", &[], combo(&["ControlLeft"]))]));
     assert!(e.handle_key("MetaLeft", SHIFT | META, true, ""));
     assert_eq!(sent(&fake), vec![(keys(&["ControlLeft"]), true)]);
+}
+
+#[test]
+fn held_with_modifiers_the_chord_does_not_press_are_lifted() {
+    let (e, fake, _rx) = engine(&profile(&[
+        ("F13", &[Modifier::Shift], combo(&["Ctrl", "KeyZ"])),
+        ("F14", &[Modifier::Shift, Modifier::Ctrl], combo(&["Ctrl", "KeyY"])),
+        ("MetaLeft", &[], combo(&["ControlLeft"])),
+    ]));
+    assert!(e.handle_key("F13", SHIFT, true, ""));
+    assert!(e.handle_key("F13", 0, true, "")); // auto-repeat: Shift now reads as up
+    assert!(e.handle_key("F13", 0, false, ""));
+    assert!(e.handle_key("F14", SHIFT | CTRL, true, ""));
+    assert!(e.handle_key("MetaLeft", SHIFT, true, "")); // a remapped modifier keeps other mods
+    assert_eq!(*fake.lifts.lock().unwrap(), vec![SHIFT, SHIFT, SHIFT, SHIFT, 0]);
 }
 
 #[test]
