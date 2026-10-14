@@ -45,10 +45,9 @@ pub fn run() {
             control::resync(app.handle()); // hotkeys and tray
             control::sync_autostart(app.handle()); // start at login, run as administrator
             foreground::start(app.handle().clone());
-            if std::env::args().any(|a| a == "--minimized")
-                && let Some(w) = app.get_webview_window("main")
-            {
-                let _ = w.hide();
+            // the window starts hidden (tauri.conf.json), so a login start never flashes it
+            if !std::env::args().any(|a| a == "--minimized") {
+                show_main(app.handle());
             }
             Ok(())
         })
@@ -70,6 +69,13 @@ pub fn run() {
             commands::stop_record,
             commands::set_monitor,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Macally Studio");
+        .build(tauri::generate_context!())
+        .expect("error while building Macally Studio")
+        .run(|_app, _event| {
+            // macOS: clicking the Dock icon brings back a window hidden by close-to-tray
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = _event {
+                show_main(_app);
+            }
+        });
 }
