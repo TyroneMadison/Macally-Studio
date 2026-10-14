@@ -80,6 +80,7 @@ Download from the [latest release](https://github.com/TyroneMadison/Macally-Stud
 - **All keyboards.** Bindings apply to every connected keyboard for now.
 - **Caps Lock on macOS.** macOS reports Caps Lock once per press, not as a press and a release, so a Caps Lock binding sends a quick tap even while you hold the key, and Caps Lock itself still turns on and off.
 - **Password fields on macOS.** While a secure text field has focus, macOS hides key presses from all apps, so remaps pause there.
+- **After an update on macOS**, open System Settings → Privacy & Security, remove Macally Studio from Accessibility and Input Monitoring with the minus button, and add it again (the app is not signed yet, so macOS treats each version as a new app).
 
 ## Build from source
 
