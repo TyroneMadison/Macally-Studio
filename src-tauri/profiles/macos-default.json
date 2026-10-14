@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "id": "macos-default",
+  "name": "macOS Default",
+  "builtin": true,
+  "hotkey": null,
+  "autoApps": [],
+  "bindings": {}
+}

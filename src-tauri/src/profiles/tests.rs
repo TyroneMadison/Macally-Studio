@@ -146,3 +146,57 @@ fn settings_round_trip_and_default_when_missing() {
     st.save_settings(&s).unwrap();
     assert_eq!(st.load_settings(), s);
 }
+
+#[test]
+fn builtins_install_read_only_with_spec_bindings() {
+    let st = temp_store("builtins");
+    st.ensure_builtins().unwrap();
+    st.ensure_builtins().unwrap(); // second launch rewrites, never duplicates
+    assert_eq!(st.list_profiles().unwrap().len(), 2);
+
+    let win = st.get_profile("windows-default").unwrap();
+    assert!(win.builtin);
+    assert_eq!(win.name, "Windows Default");
+    let keys: Vec<&str> = win.bindings.keys().map(String::as_str).collect();
+    assert_eq!(
+        keys,
+        ["F10", "F11", "F12", "F13", "F14", "F15", "F3", "F4", "F7", "F8", "F9", "MetaLeft", "MetaRight"]
+    );
+    let combo = |keys: &[&str]| Action::KeyCombo { keys: keys.iter().map(|k| k.to_string()).collect() };
+    let aumid = |id: &str| Action::LaunchApp { app: AppRef::Aumid { id: id.into() } };
+    assert_eq!(win.bindings["F3"].action, combo(&["Win", "Tab"]));
+    assert_eq!(win.bindings["F4"].action, combo(&["Win"]));
+    // with Fn-Lock on (fn+esc) the top row sends plain F7-F12; keep the printed media functions
+    assert_eq!(win.bindings["F7"].action, combo(&["MediaTrackPrevious"]));
+    assert_eq!(win.bindings["F8"].action, combo(&["MediaPlayPause"]));
+    assert_eq!(win.bindings["F9"].action, combo(&["MediaTrackNext"]));
+    assert_eq!(win.bindings["F10"].action, combo(&["AudioVolumeMute"]));
+    assert_eq!(win.bindings["F11"].action, combo(&["AudioVolumeDown"]));
+    assert_eq!(win.bindings["F12"].action, combo(&["AudioVolumeUp"]));
+    assert_eq!(win.bindings["F13"].action, combo(&["Win", "Shift", "KeyS"]));
+    assert_eq!(win.bindings["F14"].action, aumid("Microsoft.WindowsCalculator_8wekyb3d8bbwe!App"));
+    assert_eq!(win.bindings["F15"].action, aumid("Microsoft.WindowsAlarms_8wekyb3d8bbwe!App"));
+    assert_eq!(win.bindings["MetaLeft"].action, combo(&["ControlLeft"]));
+    assert_eq!(win.bindings["MetaRight"].action, combo(&["ControlRight"]));
+    assert!(win.bindings.values().all(|b| b.mods.is_empty()));
+
+    let mac = st.get_profile("macos-default").unwrap();
+    assert!(mac.builtin);
+    assert!(mac.bindings.is_empty());
+}
+
+#[test]
+fn builtin_key_names_exist_in_keymap() {
+    for text in BUILTINS {
+        let p: Profile = serde_json::from_str(text).unwrap();
+        for (code, b) in &p.bindings {
+            let sent = match &b.action {
+                Action::KeyCombo { keys } => keys.clone(),
+                _ => vec![],
+            };
+            for name in std::iter::once(code).chain(&sent) {
+                assert!(crate::keymap::def(name).is_some(), "{}: unknown key {name}", p.id);
+            }
+        }
+    }
+}

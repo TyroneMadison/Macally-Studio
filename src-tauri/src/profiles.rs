@@ -12,6 +12,12 @@ use crate::actions::Action;
 
 pub const SCHEMA: u32 = 1;
 
+/// Shipped built-in profiles, compiled in (no resource file to ship).
+const BUILTINS: [&str; 2] = [
+    include_str!("../profiles/windows-default.json"),
+    include_str!("../profiles/macos-default.json"),
+];
+
 /// Serialized as "Ctrl" | "Alt" | "Shift" | "Meta".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Modifier {
@@ -220,6 +226,17 @@ impl Store {
 
     pub fn export_profile(&self, id: &str, path: &Path) -> anyhow::Result<()> {
         fs::copy(self.path(id)?, path).with_context(|| format!("exporting {id} to {}", path.display()))?;
+        Ok(())
+    }
+
+    /// Writes the shipped built-ins on every launch so app updates refresh them.
+    /// They are read-only, so nothing a user made is overwritten.
+    pub fn ensure_builtins(&self) -> anyhow::Result<()> {
+        for text in BUILTINS {
+            let mut p: Profile = serde_json::from_str(text)?;
+            p.builtin = true;
+            self.write(&p)?;
+        }
         Ok(())
     }
 
