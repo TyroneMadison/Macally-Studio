@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "id": "windows-default",
+  "name": "Windows Default",
+  "builtin": true,
+  "hotkey": null,
+  "autoApps": [],
+  "bindings": {
+    "F3": { "mods": [], "action": { "type": "key_combo", "keys": ["Win", "Tab"] } },
+    "F4": { "mods": [], "action": { "type": "key_combo", "keys": ["Win"] } },
+    "F7": { "mods": [], "action": { "type": "key_combo", "keys": ["MediaTrackPrevious"] } },
+    "F8": { "mods": [], "action": { "type": "key_combo", "keys": ["MediaPlayPause"] } },
+    "F9": { "mods": [], "action": { "type": "key_combo", "keys": ["MediaTrackNext"] } },
+    "F10": { "mods": [], "action": { "type": "key_combo", "keys": ["AudioVolumeMute"] } },
+    "F11": { "mods": [], "action": { "type": "key_combo", "keys": ["AudioVolumeDown"] } },
+    "F12": { "mods": [], "action": { "type": "key_combo", "keys": ["AudioVolumeUp"] } },
+    "F13": { "mods": [], "action": { "type": "key_combo", "keys": ["Win", "Shift", "KeyS"] } },
+    "F14": { "mods": [], "action": { "type": "launch_app", "app": { "kind": "aumid", "id": "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App" } } },
+    "F15": { "mods": [], "action": { "type": "launch_app", "app": { "kind": "aumid", "id": "Microsoft.WindowsAlarms_8wekyb3d8bbwe!App" } } },
+    "MetaLeft": { "mods": [], "action": { "type": "key_combo", "keys": ["ControlLeft"] } },
+    "MetaRight": { "mods": [], "action": { "type": "key_combo", "keys": ["ControlRight"] } }
+  }
+}

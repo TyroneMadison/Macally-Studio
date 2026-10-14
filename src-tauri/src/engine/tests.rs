@@ -10,6 +10,13 @@ use crate::profiles::Binding;
 struct Fake {
     sent: Mutex<Vec<(Vec<String>, bool)>>,
     lifts: Mutex<Vec<ModMask>>,
+    masks: Mutex<usize>,
+}
+
+impl Fake {
+    fn masked(&self) -> usize {
+        *self.masks.lock().unwrap()
+    }
 }
 
 impl Platform for Arc<Fake> {
@@ -19,6 +26,9 @@ impl Platform for Arc<Fake> {
     }
     fn can_send(&self, key: &str) -> bool {
         key != "BrightnessUp" // like Windows: no key to inject
+    }
+    fn swallowed_press(&self) {
+        *self.masks.lock().unwrap() += 1;
     }
 }
 
@@ -237,4 +247,76 @@ fn macally_device_matchers() {
     let ioreg = "+-o USB Backlit Keyboard@14100000\n  \"idProduct\" = 276\n  \"idVendor\" = 8738\n+-o Magic Mouse@1\n  \"idProduct\" = 597\n";
     assert!(ioreg_has_macally(ioreg));
     assert!(!ioreg_has_macally("+-o A@1\n  \"idVendor\" = 8738\n+-o B@2\n  \"idProduct\" = 276\n"));
+}
+
+// --- the Windows key -------------------------------------------------------------------
+
+#[test]
+fn shipped_windows_default_leaves_command_as_the_win_key() {
+    // the 1.0/1.1 default mapped Command (LWin/RWin) to Ctrl, so the hook swallowed every Win press
+    let win = crate::profiles::builtins().find(|p| p.id == "windows-default").unwrap();
+    let (e, fake, _rx) = engine(&win);
+    for code in ["MetaLeft", "MetaRight"] {
+        assert!(!e.handle_key(code, 0, true, ""), "{code} down must reach Windows");
+        assert!(!e.handle_key(code, 0, false, ""), "{code} up must reach Windows");
+    }
+    // Win+V on the real Win key: V is unbound, so Windows gets its own chord
+    assert!(!e.handle_key("KeyV", META, true, ""));
+    assert!(!e.handle_key("KeyV", META, false, ""));
+    assert!(sent(&fake).is_empty());
+}
+
+#[test]
+fn key_remapped_to_win_holds_win_so_chords_work() {
+    let (e, fake, _rx) = engine(&profile(&[("ContextMenu", &[], combo(&["Win"]))]));
+    assert!(e.handle_key("ContextMenu", 0, true, "")); // Win down
+    assert!(e.handle_key("ContextMenu", META, true, "")); // auto-repeat: still ours
+    assert!(!e.handle_key("KeyV", META, true, "")); // V reaches Windows: Win+V
+    assert!(!e.handle_key("KeyV", META, false, ""));
+    assert!(e.handle_key("ContextMenu", META, false, "")); // Win up, once
+    assert_eq!(
+        sent(&fake),
+        vec![(keys(&["MetaLeft"]), true), (keys(&["MetaLeft"]), true), (keys(&["MetaLeft"]), false)]
+    );
+    assert_eq!(*fake.lifts.lock().unwrap(), vec![0, 0, 0]);
+    assert_eq!(fake.masked(), 0, "a tap of the Win remap on its own must still open Start");
+}
+
+#[test]
+fn key_remapped_to_win_works_with_other_modifiers_already_held() {
+    let (e, fake, _rx) = engine(&profile(&[("F13", &[], combo(&["Win"])), ("AltLeft", &[], combo(&["Win"]))]));
+    assert!(e.handle_key("F13", SHIFT, true, "")); // Shift first, then F13: Win+Shift
+    assert!(e.handle_key("AltLeft", CTRL, true, "")); // option remapped to Win, Ctrl held
+    assert_eq!(sent(&fake), vec![(keys(&["MetaLeft"]), true), (keys(&["MetaLeft"]), true)]);
+    assert_eq!(*fake.lifts.lock().unwrap(), vec![0, 0], "held Shift and Ctrl stay in the chord");
+}
+
+#[test]
+fn win_chord_binding_and_identity_remap() {
+    let (e, fake, _rx) =
+        engine(&profile(&[("F13", &[], combo(&["Win", "KeyV"])), ("MetaLeft", &[], combo(&["Win"]))]));
+    assert!(e.handle_key("F13", 0, true, ""));
+    assert!(e.handle_key("F13", 0, false, ""));
+    assert!(e.handle_key("MetaLeft", 0, true, ""));
+    assert!(e.handle_key("MetaLeft", META, false, ""));
+    assert_eq!(
+        sent(&fake),
+        vec![
+            (keys(&["MetaLeft", "KeyV"]), true),
+            (keys(&["MetaLeft", "KeyV"]), false),
+            (keys(&["MetaLeft"]), true),
+            (keys(&["MetaLeft"]), false),
+        ]
+    );
+}
+
+#[test]
+fn swallowed_presses_are_reported_once_per_press() {
+    // Win held + F14 -> Calculator: Windows never sees F14, so Start would open on Win up
+    let (e, fake, _rx) = engine(&profile(&[("F14", &[Modifier::Meta], calc()), ("F3", &[], combo(&["Win", "Tab"]))]));
+    assert!(e.handle_key("F14", META, true, ""));
+    assert!(e.handle_key("F14", META, true, "")); // auto-repeat
+    assert!(e.handle_key("F14", META, false, ""));
+    assert!(e.handle_key("F3", 0, true, ""));
+    assert_eq!(fake.masked(), 2);
 }

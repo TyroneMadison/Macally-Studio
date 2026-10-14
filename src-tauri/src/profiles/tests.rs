@@ -199,7 +199,7 @@ fn builtins_install_with_spec_bindings() {
     let keys: Vec<&str> = win.bindings.keys().map(String::as_str).collect();
     assert_eq!(
         keys,
-        ["F10", "F11", "F12", "F13", "F14", "F15", "F3", "F4", "F7", "F8", "F9", "MetaLeft", "MetaRight"]
+        ["F10", "F11", "F12", "F13", "F14", "F15", "F3", "F4", "F7", "F8", "F9"]
     );
     let combo = |keys: &[&str]| Action::KeyCombo { keys: keys.iter().map(|k| k.to_string()).collect() };
     let aumid = |id: &str| Action::LaunchApp { app: AppRef::Aumid { id: id.into() } };
@@ -215,8 +215,8 @@ fn builtins_install_with_spec_bindings() {
     assert_eq!(win.bindings["F13"].action, combo(&["Win", "Shift", "KeyS"]));
     assert_eq!(win.bindings["F14"].action, aumid("Microsoft.WindowsCalculator_8wekyb3d8bbwe!App"));
     assert_eq!(win.bindings["F15"].action, aumid("Microsoft.WindowsAlarms_8wekyb3d8bbwe!App"));
-    assert_eq!(win.bindings["MetaLeft"].action, combo(&["ControlLeft"]));
-    assert_eq!(win.bindings["MetaRight"].action, combo(&["ControlRight"]));
+    // Command is the Windows key on Windows: left alone, a tap opens Start and Win+V, Win+C work
+    assert!(!win.bindings.contains_key("MetaLeft") && !win.bindings.contains_key("MetaRight"));
     assert!(win.bindings.values().all(|b| b.mods.is_empty()));
 
     let mac = st.get_profile("macos-default").unwrap();
@@ -255,4 +255,29 @@ fn community_example_profile_loads() {
             }
         }
     }
+}
+
+#[test]
+fn untouched_old_windows_default_moves_to_the_new_one() {
+    let st = temp_store("migrate");
+    let old: Profile = serde_json::from_str(include_str!("../../profiles/retired/windows-default-1.0.json")).unwrap();
+    assert_eq!(old.bindings["MetaLeft"].action, Action::KeyCombo { keys: vec!["ControlLeft".into()] });
+    st.write(&Profile { hotkey: Some("Ctrl+Alt+1".into()), ..old }).unwrap();
+    st.ensure_builtins().unwrap();
+    let win = st.get_profile("windows-default").unwrap();
+    assert!(!win.bindings.contains_key("MetaLeft"), "Command is the Win key again");
+    assert_eq!(win.bindings.len(), 11);
+    assert_eq!(win.hotkey.as_deref(), Some("Ctrl+Alt+1"), "only the bindings change");
+}
+
+#[test]
+fn edited_old_windows_default_is_left_alone() {
+    let st = temp_store("migrate-edited");
+    let mut old: Profile = serde_json::from_str(include_str!("../../profiles/retired/windows-default-1.0.json")).unwrap();
+    old.bindings.remove("F14");
+    st.write(&old).unwrap();
+    st.ensure_builtins().unwrap();
+    let win = st.get_profile("windows-default").unwrap();
+    assert!(win.bindings.contains_key("MetaLeft"), "the user's own edits win over a new default");
+    assert!(!win.bindings.contains_key("F14"));
 }

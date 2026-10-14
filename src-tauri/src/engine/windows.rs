@@ -173,6 +173,20 @@ fn mod_inputs(bits: u8, up: bool) -> Vec<INPUT> {
     v
 }
 
+/// A key press never reached Windows. If Win or Alt is down (held by the user or by a remap),
+/// tap VK_MASK so letting go of it does not open Start or the menu bar: to Windows nothing else
+/// was pressed. AutoHotkey's menu mask key works the same way.
+pub fn swallowed_press() {
+    if menu_key_down() {
+        let tap = [key_input(VK_MASK, 0, KEYBD_EVENT_FLAGS(0)), key_input(VK_MASK, 0, KEYEVENTF_KEYUP)];
+        unsafe { SendInput(&tap, std::mem::size_of::<INPUT>() as i32) };
+    }
+}
+
+fn menu_key_down() -> bool {
+    [VK_LWIN, VK_RWIN, VK_LMENU, VK_RMENU].into_iter().any(is_down)
+}
+
 /// False for keys Windows has no way to send (brightness, Eject, Fn).
 pub fn can_send(key: &str) -> bool {
     keymap::def(key).is_some_and(|d| input(d, false).is_some())
@@ -272,6 +286,27 @@ mod tests {
                 (ki.wVk.0, ki.wScan, ki.dwFlags.0 & KEYEVENTF_KEYUP.0 != 0)
             })
             .collect()
+    }
+
+    #[test]
+    fn win_alone_and_win_chords_inject_extended_scan_codes_without_a_mask() {
+        let s = |k: &[&str]| -> Vec<String> { k.iter().map(|x| x.to_string()).collect() };
+        // a remapped Win tap: one extended scan-code press, then its release; no VK_MASK,
+        // which would stop Start from opening
+        let (down, lifted) = chord(&s(&["MetaLeft"]), true, 0, 0, 0);
+        assert_eq!(keys_of(&down), vec![(0, 0x5B, false)]);
+        assert_eq!(unsafe { down[0].Anonymous.ki }.dwFlags.0, (KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY).0);
+        let (up, _) = chord(&s(&["MetaLeft"]), false, 0, 0, lifted);
+        assert_eq!(keys_of(&up), vec![(0, 0x5B, true)]);
+        // the "Win" alias is the same left Win key
+        assert_eq!(keys_of(&chord(&s(&["Win"]), true, 0, 0, 0).0), vec![(0, 0x5B, false)]);
+        // Win+V: Win first, V second, released in reverse
+        let win_v = s(&["MetaLeft", "KeyV"]);
+        assert_eq!(keys_of(&chord(&win_v, true, 0, 0, 0).0), vec![(0, 0x5B, false), (0, 0x2F, false)]);
+        assert_eq!(keys_of(&chord(&win_v, false, 0, 0, 0).0), vec![(0, 0x2F, true), (0, 0x5B, true)]);
+        // the physical Win keys decode to the codes the profiles use
+        assert_eq!(keymap::code_from_win(0x5B, true, 0x5B), Some("MetaLeft"));
+        assert_eq!(keymap::code_from_win(0x5C, true, 0x5C), Some("MetaRight"));
     }
 
     #[test]

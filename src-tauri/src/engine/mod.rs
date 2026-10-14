@@ -75,6 +75,11 @@ fn combo_mask(keys: &[String]) -> ModMask {
     keys.iter().fold(0, |m, k| m | mod_bit(k))
 }
 
+/// A KeyCombo of modifiers only (F13 -> Win, Cmd -> Ctrl): the key becomes that modifier.
+fn is_modifier_chord(a: &Action) -> bool {
+    matches!(a, Action::KeyCombo { keys } if !keys.is_empty() && keys.iter().all(|k| mod_bit(k) != 0))
+}
+
 /// "Ctrl", "Alt", "Shift", "Meta": the Modifier names, also valid KeyCombo aliases.
 pub fn mod_names(m: ModMask) -> Vec<String> {
     [(CTRL, "Ctrl"), (ALT, "Alt"), (SHIFT, "Shift"), (META, "Meta")]
@@ -166,6 +171,9 @@ pub trait Platform: Send + Sync {
     fn can_send(&self, _key: &str) -> bool {
         true
     }
+    /// A key press was swallowed. Windows opens Start (Win) or the menu bar (Alt) when one of
+    /// those goes down and up with no key the OS saw in between, so it must see one.
+    fn swallowed_press(&self) {}
 }
 
 /// Per-key state; one lock, never held while injecting.
@@ -289,9 +297,13 @@ impl Engine {
                     return false;
                 }
                 let table = self.table.read().unwrap();
-                // a remapped modifier (Cmd -> Ctrl) applies whatever else is held, so lifts nothing
+                // a remapped modifier (Cmd -> Ctrl), or a key remapped to one (F13 -> Win), works
+                // whatever else is held, in any order, so it lifts nothing
                 let (hit, with) = match table.lookup(code, mods) {
-                    None if bit != 0 => (table.lookup(code, 0), 0),
+                    None => match table.lookup(code, 0) {
+                        Some(a) if bit != 0 || is_modifier_chord(a) => (Some(a), 0),
+                        _ => (None, mods),
+                    },
                     hit => (hit, mods),
                 };
                 let action = match hit {
@@ -307,9 +319,14 @@ impl Engine {
                 (action, lift)
             }
         };
+        let first = !live.held.contains_key(code);
         let fire = matches!(action, Action::KeyCombo { .. }) || debounce(&mut live.last_fire, code, now);
         live.held.insert(code.to_string(), (action.clone(), lift));
         drop(live);
+        // a key that becomes a modifier is not a key in between for its own Win or Alt
+        if first && !is_modifier_chord(&action) {
+            self.platform.swallowed_press();
+        }
         match action {
             Action::KeyCombo { keys } => self.platform.send_combo(&keys, true, lift),
             other if fire => {
@@ -364,6 +381,9 @@ impl Platform for OsPlatform {
     }
     fn can_send(&self, key: &str) -> bool {
         os::can_send(key)
+    }
+    fn swallowed_press(&self) {
+        os::swallowed_press();
     }
 }
 

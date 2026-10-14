@@ -185,6 +185,9 @@ fn flag_of(code: &str) -> CGEventFlags {
 }
 
 /// False for keys a Mac has no keycode or media key for (PrintScreen, ScrollLock, Pause).
+/// macOS has no Start menu or Alt menu bar to keep shut.
+pub fn swallowed_press() {}
+
 pub fn can_send(key: &str) -> bool {
     keymap::def(key).is_some_and(|d| d.mac_vk.is_some() || d.mac_media.is_some())
 }

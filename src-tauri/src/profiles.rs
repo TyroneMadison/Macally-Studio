@@ -18,6 +18,11 @@ const BUILTINS: [&str; 2] = [
     include_str!("../profiles/macos-default.json"),
 ];
 
+/// Built-in defaults earlier versions shipped. A built-in on disk whose bindings still equal one
+/// of these was never edited, so it moves to the current default; an edited one is left alone.
+/// 1.0 and 1.1 mapped Command (the Win key) to Ctrl, which left the keyboard with no Win key.
+const RETIRED_DEFAULTS: [&str; 1] = [include_str!("../profiles/retired/windows-default-1.0.json")];
+
 /// Serialized as "Ctrl" | "Alt" | "Shift" | "Meta".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Modifier {
@@ -137,8 +142,12 @@ fn read_profile(path: &Path) -> anyhow::Result<Profile> {
     Ok(p)
 }
 
+fn retired_defaults() -> impl Iterator<Item = Profile> {
+    RETIRED_DEFAULTS.iter().map(|text| serde_json::from_str(text).expect("retired built-in profiles parse"))
+}
+
 /// The shipped built-ins, flagged `builtin`.
-fn builtins() -> impl Iterator<Item = Profile> {
+pub(crate) fn builtins() -> impl Iterator<Item = Profile> {
     BUILTINS.iter().map(|text| {
         let p: Profile = serde_json::from_str(text).expect("shipped built-in profiles parse");
         Profile { builtin: true, ..p }
@@ -242,8 +251,14 @@ impl Store {
     /// Writes a shipped built-in only when its file is missing or unreadable, so edits survive updates.
     pub fn ensure_builtins(&self) -> anyhow::Result<()> {
         for p in builtins() {
-            if self.get_profile(&p.id).is_err() {
-                self.write(&p)?;
+            match self.get_profile(&p.id) {
+                Err(_) => self.write(&p)?,
+                // an untouched copy of an older default: take the new bindings, keep the rest
+                Ok(mut have) if retired_defaults().any(|old| old.id == have.id && old.bindings == have.bindings) => {
+                    have.bindings = p.bindings;
+                    self.write(&have)?;
+                }
+                Ok(_) => {}
             }
         }
         Ok(())
