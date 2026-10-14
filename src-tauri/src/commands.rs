@@ -225,7 +225,8 @@ pub struct Status {
     pub permissions_ok: bool,
 }
 
-#[tauri::command]
+/// Async: runs off the main thread, because device_found runs `ioreg` on macOS.
+#[tauri::command(async)]
 pub fn get_status(app: AppHandle, state: State<'_, AppState>) -> Status {
     Status {
         paused: state.engine.is_paused(),
