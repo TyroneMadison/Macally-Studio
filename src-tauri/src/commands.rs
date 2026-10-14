@@ -255,8 +255,10 @@ pub fn stop_record(engine: EngineState<'_>) {
 }
 
 /// Key Monitor: every key goes to the UI as "key-event"; remapping keeps working.
+/// Never while the window is hidden (close-to-tray, login start): keys typed in other apps stay out of the UI.
 #[tauri::command]
-pub fn set_monitor(engine: EngineState<'_>, on: bool) {
+pub fn set_monitor(window: tauri::Window, engine: EngineState<'_>, on: bool) {
+    let on = on && window.is_visible().unwrap_or(false);
     engine.set_mode(if on { crate::engine::Mode::Monitor } else { crate::engine::Mode::Normal });
 }
 

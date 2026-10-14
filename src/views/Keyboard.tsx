@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import Inspector from "../components/Inspector";
 import Keyboard3D from "../components/Keyboard3D";
 import { setMonitor } from "../lib/ipc";
@@ -16,10 +17,16 @@ export default function Keyboard({ store }: { store: AppState }) {
   const legends: "mac" | "win" = store.settings.windowsLegends ? "win" : "mac";
   const setLegends = (l: "mac" | "win") => void store.saveSettings({ windowsLegends: l === "win" });
 
-  // Monitor mode while this view is mounted, so the Key Monitor strip sees every press.
+  // Monitor mode while this view is mounted, so the Key Monitor strip sees every press. Rust keeps it
+  // off while the window is hidden and ends it on close-to-tray; focus coming back turns it on again.
   useEffect(() => {
-    setMonitor(true).catch(console.error);
+    let live = true;
+    const on = () => void setMonitor(true).catch(console.error);
+    on();
+    const off = getCurrentWindow().onFocusChanged(({ payload: focused }) => live && focused && on());
     return () => {
+      live = false;
+      void off.then((unlisten) => unlisten()).catch(() => undefined);
       setMonitor(false).catch(console.error);
     };
   }, []);
