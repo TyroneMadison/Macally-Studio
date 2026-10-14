@@ -47,7 +47,7 @@ describe("chords", () => {
   it("formats chords per OS and round-trips", () => {
     expect(formatChord(["ControlLeft", "KeyZ"], false)).toBe("Ctrl + Z");
     expect(formatChord(["Meta", "Tab"], false)).toBe("Win + Tab");
-    expect(formatChord(["Meta", "Alt", "Escape"], true)).toBe("Cmd + Option + Escape");
+    expect(formatChord(["Meta", "Alt", "Escape"], true)).toBe("Cmd + Option + Esc");
     expect(parseChord(formatChord(["Shift", "Digit1", "F5"], false))).toEqual(["Shift", "Digit1", "F5"]);
     expect(parseChord(formatChord(["Ctrl", "Alt", "Delete"], true))).toEqual(["Ctrl", "Alt", "Delete"]);
   });
@@ -129,5 +129,14 @@ describe("catalog entries", () => {
     expect(describeAction({ type: "key_combo", keys: ["Meta", "Tab"] }, [], [], false).title).toBe("Win + Tab");
     expect(describeAction({ type: "switch_profile", profile: "gaming" }, [], []).title).toBe("gaming");
     expect(describeAction(undefined, [], []).title).toBe("Not remapped");
+  });
+});
+
+describe("friendly key names", () => {
+  it("shows media keys by name and reads them back", () => {
+    expect(formatChord(["AudioVolumeMute"], false)).toBe("Mute");
+    expect(formatChord(["Meta", "Shift", "KeyS"], false)).toBe("Win + Shift + S");
+    expect(parseChord(formatChord(["MediaTrackPrevious"], false))).toEqual(["MediaTrackPrevious"]);
+    expect(parseChord("volume up")).toEqual(["AudioVolumeUp"]);
   });
 });

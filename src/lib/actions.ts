@@ -7,8 +7,18 @@ export type Mod = "Ctrl" | "Alt" | "Shift" | "Meta";
 /** Label order: Control, Option, Shift, Command on a Mac; Win first on Windows ("Win + Shift + S"). */
 const MOD_ORDER: Mod[] = isMac ? ["Ctrl", "Alt", "Shift", "Meta"] : ["Meta", "Ctrl", "Alt", "Shift"];
 
+/** Readable names for keys whose code is not what people call them. formatChord shows these; parseChord reads them back. */
+const FRIENDLY: Record<string, string> = {
+  MediaTrackPrevious: "Previous track", MediaPlayPause: "Play/Pause", MediaTrackNext: "Next track",
+  AudioVolumeMute: "Mute", AudioVolumeDown: "Volume down", AudioVolumeUp: "Volume up",
+  BrightnessDown: "Brightness down", BrightnessUp: "Brightness up", ContextMenu: "Menu", Escape: "Esc",
+  ArrowUp: "Up", ArrowDown: "Down", ArrowLeft: "Left", ArrowRight: "Right", PageUp: "Page up", PageDown: "Page down",
+  PrintScreen: "Print screen", NumLock: "Num lock", CapsLock: "Caps lock",
+};
+
 /** Typed names -> key ids the engine accepts (modifier aliases or W3C codes). */
 const NAMES: Record<string, string> = {
+  ...Object.fromEntries(Object.entries(FRIENDLY).map(([code, name]) => [name.toLowerCase(), code])),
   ctrl: "Ctrl", control: "Ctrl", alt: "Alt", opt: "Alt", option: "Alt", shift: "Shift",
   meta: "Meta", win: "Meta", cmd: "Meta", command: "Meta",
   esc: "Escape", return: "Enter", del: "Delete", menu: "ContextMenu", pgup: "PageUp", pgdn: "PageDown",
@@ -48,7 +58,7 @@ export function formatChord(keys: string[], mac = isMac): string {
   return keys
     .map((k) => {
       const m = modAlias(k);
-      return m ? label[m] : k.replace(/^Key([A-Z])$/, "$1").replace(/^Digit(\d)$/, "$1");
+      return m ? label[m] : FRIENDLY[k] ?? k.replace(/^Key([A-Z])$/, "$1").replace(/^Digit(\d)$/, "$1");
     })
     .join(" + ");
 }

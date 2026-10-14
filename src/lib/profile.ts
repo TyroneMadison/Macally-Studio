@@ -1,3 +1,4 @@
+import { formatChord } from "./actions";
 import type { Action, AppEntry, Profile } from "./types";
 
 /** `base`, else `base-2`, `base-3`, ... (same rule as Store::free_id in Rust). */
@@ -41,7 +42,7 @@ export function ruleFor(app: AppEntry): string | null {
 export function actionLabel(a: Action, catalog: AppEntry[], profiles: Profile[]): string {
   switch (a.type) {
     case "key_combo":
-      return a.keys.join(" + ");
+      return formatChord(a.keys);
     case "launch_app": {
       const id = a.app.kind === "path" ? a.app.path : a.app.id;
       // the catalog stores Start-menu apps as shell:AppsFolder\<AUMID>

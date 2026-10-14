@@ -30,7 +30,15 @@ export default function ProfileDetail({ store, profile: p, onSelect, onEditKeys 
   };
   const update = (patch: Partial<Profile>) => run(store.saveProfile({ ...patch, id: p.id }));
   const appName = (rule: string) => store.catalog.find((a) => ruleFor(a) === rule)?.name ?? rule;
-  const keyName = (code: string) => store.layout.keys.find((k) => k.code === code)?.[legend] || code;
+  const keyName = (code: string) => {
+    const name = store.layout.keys.find((k) => k.code === code)?.[legend] || code;
+    const side = /^(Control|Alt|Shift|Meta)(Left|Right)$/.exec(code)?.[2];
+    return side ? `${side} ${name}` : name;
+  };
+  const order = (code: string) => {
+    const i = store.layout.keys.findIndex((k) => k.code === code);
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  };
 
   const rename = () => {
     const next = name.trim();
@@ -123,7 +131,7 @@ export default function ProfileDetail({ store, profile: p, onSelect, onEditKeys 
           <div className="muted small">No keys remapped. Every key does what its legend says.</div>
         ) : (
           <div className="binding-grid">
-            {Object.entries(p.bindings).map(([code, b]) => (
+            {Object.entries(p.bindings).sort(([a], [b]) => order(a) - order(b)).map(([code, b]) => (
               <div key={code} className="binding">
                 <span className="mono strong">{[...b.mods, keyName(code)].join("+")}</span>
                 <span className="muted ellipsis">{actionLabel(b.action, store.catalog, store.profiles)}</span>
