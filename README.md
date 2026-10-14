@@ -78,6 +78,7 @@ Download from the [latest release](https://github.com/TyroneMadison/Macally-Stud
 - **Admin windows on Windows.** Windows does not let a normal app send keys to an app running as administrator. Turn on **Run as administrator** in Settings if you need that.
 - **Some games** read the keyboard directly (raw input) and see the physical key, not the remapped one.
 - **All keyboards.** Bindings apply to every connected keyboard for now.
+- **Caps Lock on macOS.** macOS reports Caps Lock once per press, not as a press and a release, so a Caps Lock binding sends a quick tap even while you hold the key, and Caps Lock itself still turns on and off.
 - **Password fields on macOS.** While a secure text field has focus, macOS hides key presses from all apps, so remaps pause there.
 
 ## Build from source

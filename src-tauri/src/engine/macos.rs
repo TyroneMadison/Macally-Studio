@@ -112,7 +112,13 @@ unsafe extern "C-unwind" fn tap_cb(
         }
     }
     let mods = mods_from_flags(flags);
-    if engine.handle_key(code, mods, down, &raw) { ptr::null_mut() } else { event.as_ptr() }
+    let swallow = if code == "CapsLock" {
+        // one event per lock toggle, not one per press and one per release: run it as a tap
+        engine.handle_key(code, mods, true, &raw) | engine.handle_key(code, mods, false, &raw)
+    } else {
+        engine.handle_key(code, mods, down, &raw)
+    };
+    if swallow { ptr::null_mut() } else { event.as_ptr() }
 }
 
 /// (code, is_down, raw description) for key, modifier and media events.
