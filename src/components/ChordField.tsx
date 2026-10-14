@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { formatChord, isMac, parseChord, recordStep, type Mod } from "../lib/actions";
-import { onKeyEvent, setMonitor, startRecord, stopRecord } from "../lib/ipc";
+import { onKeyEvent, startRecord, stopRecord } from "../lib/ipc";
 
 export type ChordFieldProps = {
   id: string;
@@ -13,14 +13,6 @@ export type ChordFieldProps = {
 export default function ChordField({ id, initial, disabled = false, onChange }: ChordFieldProps) {
   const [text, setText] = useState(() => formatChord(initial));
   const [recording, setRecording] = useState(false);
-  const mounted = useRef(false);
-
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
 
   // Record mode: the engine swallows keys and reports them as "key-event" until stopRecord.
   useEffect(() => {
@@ -38,7 +30,7 @@ export default function ChordField({ id, initial, disabled = false, onChange }: 
       setRecording(false);
     });
     unlisten
-      .then(() => startRecord())
+      .then(() => (live ? startRecord() : undefined)) // cleaned up before listen() resolved: never start
       .catch((err) => {
         console.error(err);
         setRecording(false);
@@ -48,10 +40,7 @@ export default function ChordField({ id, initial, disabled = false, onChange }: 
       live = false;
       clearTimeout(timer);
       unlisten.then((off) => off()).catch(() => undefined);
-      // Record replaced the Keyboard view's Monitor mode; put it back unless the view is gone.
-      stopRecord()
-        .then(() => (mounted.current ? setMonitor(true) : undefined))
-        .catch(console.error);
+      stopRecord().catch(console.error); // also puts back Monitor mode if the Keyboard view wants it
     };
   }, [recording]); // onChange is read once per recording
 

@@ -17,9 +17,25 @@ export const saveSettings = (settings: Settings) => invoke<void>("save_settings"
 export const setPaused = (paused: boolean) => invoke<void>("set_paused", { paused });
 export const getCatalog = () => invoke<AppEntry[]>("get_catalog");
 export const refreshCatalog = () => invoke<AppEntry[]>("refresh_catalog");
-export const startRecord = () => invoke<void>("start_record");
-export const stopRecord = () => invoke<void>("stop_record");
-export const setMonitor = (on: boolean) => invoke<void>("set_monitor", { on });
+
+// Record and Monitor share the engine's one mode. The Monitor wish lives here, so ending a Record
+// (from any field, mounted or not) puts Monitor back exactly when the Keyboard view still wants it.
+let monitorWanted = false;
+let recording = false;
+export const startRecord = () => {
+  recording = true;
+  return invoke<void>("start_record");
+};
+export const stopRecord = () => {
+  recording = false;
+  return invoke<void>("stop_record").then(() =>
+    monitorWanted && !recording ? invoke<void>("set_monitor", { on: true }) : undefined,
+  );
+};
+export const setMonitor = (on: boolean) => {
+  monitorWanted = on;
+  return recording ? Promise.resolve() : invoke<void>("set_monitor", { on });
+};
 export const checkUpdate = () => invoke<UpdateInfo | null>("check_update");
 export const installUpdate = () => invoke<void>("install_update");
 export const getStatus = () => invoke<Status>("get_status");
