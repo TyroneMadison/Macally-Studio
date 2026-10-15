@@ -4,18 +4,30 @@
 
 Every entry below is a commit from this repository's history. Versions go 1.0, 1.1 … 1.9, then 2.0, and each `vX.Y` tag publishes a GitHub Release with the Windows and macOS installers.
 
-Legend: ✨ new · 🐛 fix · 🎨 look and feel · 🔖 version bump
+Legend: ✨ new · 🐛 fix · 🔥 removed · 🎨 look and feel · 🔖 version bump
 
-## 🧪 Unreleased · Gaming profiles, backend only
+## 🧪 Unreleased · Gaming profiles
 
-![unreleased](https://img.shields.io/badge/unreleased-main-F5A524?style=for-the-badge) ![commits](https://img.shields.io/badge/commits-3-8E8E97?style=flat-square) ![scope](https://img.shields.io/badge/scope-backend%20only-8E8E97?style=flat-square)
+![unreleased](https://img.shields.io/badge/unreleased-main-F5A524?style=for-the-badge) ![commits](https://img.shields.io/badge/commits-10-8E8E97?style=flat-square)
 
-The engine side of gaming profiles is on `main`. The screens that use it come in a later version, once their mockups are approved, so nothing in the app changes yet.
+On `main`, coming in the next version: every game gets its own keys, which switch in while the game is in front and back when you leave it. The 3D keyboard no longer jitters while it turns, a key is remapped by clicking, and play/pause is gone (remapping is always on).
 
 - ✨ Game profiles in the store: each game gets its own profile, with the game's exe or install folder, icon and auto-switch flag [`3cf8937`](https://github.com/TyroneMadison/Macally-Studio/commit/3cf8937)
 - ✨ Tell which game an app starts: the exe of a program, shortcut or Start-menu app, or a Steam game's install folder; share the icon cache [`31e70be`](https://github.com/TyroneMadison/Macally-Studio/commit/31e70be)
 - ✨ Switch to a game's profile while the game is in front and back when it loses focus or quits, debounced; commands and a profile-switched event for the coming games UI [`c0dc232`](https://github.com/TyroneMadison/Macally-Studio/commit/c0dc232)
+- 🐛 Fix the 3D keyboard jittering while it is rotated: the camera's own moves no longer come back to it as requests [`1c7e2ec`](https://github.com/TyroneMadison/Macally-Studio/commit/1c7e2ec)
+- 🔥 Remap by clicking only: remove Press a key, Pick key by pressing and the engine's Record mode [`21c4d5a`](https://github.com/TyroneMadison/Macally-Studio/commit/21c4d5a)
+- 🔥 Remove play/pause and the pause function everywhere: remapping is always on [`c0b5fdf`](https://github.com/TyroneMadison/Macally-Studio/commit/c0b5fdf)
+- ✨ Game profiles run on top of the Default profile, a key can be turned off, and a game knows its exe path [`8d37aae`](https://github.com/TyroneMadison/Macally-Studio/commit/8d37aae)
+- ✨ Game profiles UI: the game status in the rail corner, the detection notice, the Games panel and Add a game, after the mockups in docs/mockups [`7d8a24e`](https://github.com/TyroneMadison/Macally-Studio/commit/7d8a24e)
+- ✨ Full-screen profile editor: opens when a game's profile switches in, detected or picked by hand (04c) [`88489ba`](https://github.com/TyroneMadison/Macally-Studio/commit/88489ba)
+- 🎨 Editor and Game profiles polish: short Mac legends (cmd, opt, ctrl, pg up) on the flat keyboard, and a long exe path wraps beside the game instead of pushing Duplicate and Delete down [`d8e0bbb`](https://github.com/TyroneMadison/Macally-Studio/commit/d8e0bbb)
 - 🔀 [compare v1.3…main](https://github.com/TyroneMadison/Macally-Studio/compare/v1.3...main)
+
+<table><tr>
+<td><img src="docs/images/game-detected.png" alt="Notepad as a stand-in game: detected, its profile switched in and its editor opened"></td>
+<td><img src="docs/images/game-profiles.png" alt="Game profiles: the Default and a game with its own keys and auto-switch"></td>
+</tr></table>
 
 ## 🚀 v1.3 · Launch program
 

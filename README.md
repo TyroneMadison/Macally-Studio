@@ -25,17 +25,17 @@ Remap keys, launch apps and Steam games, and switch profiles automatically, on W
 
 <table>
   <tr>
-    <td width="33%" valign="top"><b>Remap any key</b><br>Select a key by clicking it or pressing it, then press the key or chord it should send (such as <kbd>Ctrl</kbd>+<kbd>Z</kbd>) or pick it from a list of keycaps, Windows key included, with ready-made shortcuts like <kbd>Win</kbd>+<kbd>V</kbd> and <kbd>Win</kbd>+<kbd>C</kbd>. It saves at once. Add "only when held with" modifiers for a second set of bindings.</td>
+    <td width="33%" valign="top"><b>Remap any key</b><br>Click a key, then pick what it sends from a list of keycaps, Windows key included, with ready-made shortcuts like <kbd>Win</kbd>+<kbd>V</kbd> and <kbd>Win</kbd>+<kbd>C</kbd>, or turn it off. It saves at once. Add "only when held with" modifiers for a second set of bindings. The Key Monitor shows what the system reports for any key.</td>
     <td width="33%" valign="top"><b>Profiles</b><br>Switch by hand, by hotkey (next, previous, or one per profile), or automatically when a chosen app comes to the front.</td>
     <td width="33%" valign="top"><b>Launch any app</b><br>Desktop apps, Microsoft Store apps and system apps such as Calculator, Clock and Settings on Windows; every app on macOS. Searchable, with icons.</td>
   </tr>
   <tr>
     <td valign="top"><b>Steam games</b><br>Your whole Steam library, found automatically. One key, one game.</td>
     <td valign="top"><b>Open and run</b><br>Bind a website, file, folder or command line. Commands can run hidden.</td>
-    <td valign="top"><b>3D keyboard</b><br>A to-scale model of the keyboard. Click a key to bind it (or press it with Pick key by pressing), spin it a full 360°, tilt it, zoom to 250 %. Bound keys glow; adjustable brightness and backlight; Mac or Windows legends.</td>
+    <td valign="top"><b>3D keyboard</b><br>A to-scale model of the keyboard. Click a key to bind it, spin it a full 360°, tilt it, zoom to 250 %. Bound keys glow; adjustable brightness and backlight; Mac or Windows legends.</td>
   </tr>
   <tr>
-    <td valign="top"><b>Key Monitor and Record</b><br>See exactly what the system reports for any key, and capture a chord by pressing it.</td>
+    <td valign="top"><b>Game profiles</b><br>Add a game that runs or is installed and it gets its own keys, on top of your Default profile. They switch in while the game is in front and back when you leave it, with a notice and the game in the corner.</td>
     <td valign="top"><b>Tray and menu bar</b><br>Switch profiles and check for updates from the tray. Starts at login and closes to the tray.</td>
     <td valign="top"><b>Updates itself</b><br>Checks GitHub Releases on launch and installs a new version with one click.</td>
   </tr>
@@ -43,13 +43,13 @@ Remap keys, launch apps and Steam games, and switch profiles automatically, on W
 
 ## Screenshots
 
-| Keyboard | Keycap picker |
+| Keyboard | Game detected |
 | :---: | :---: |
-| <img src="docs/images/keyboard-view.png" alt="Keyboard view with the 3D keyboard and the key inspector"> | <img src="docs/images/key-picker-win.png" alt="Keycap picker with the Win key and its Windows logo"> |
-| **Windows shortcuts** | **Launch program** |
-| <img src="docs/images/win-shortcuts.png" alt="Windows shortcut presets such as Win + V and Win + C"> | <img src="docs/images/launch-program.png" alt="Launch program tab with installed apps and their icons"> |
-| **Profiles** | **Settings** |
-| <img src="docs/images/profiles.png" alt="Profiles view"> | <img src="docs/images/settings.png" alt="Settings and updates"> |
+| <img src="docs/images/game-status-idle.png" alt="Keyboard view with the 3D keyboard and Watching for games in the corner"> | <img src="docs/images/game-detected.png" alt="A detected game: its profile switched in, the notice and its full-screen editor"> |
+| **Game profiles** | **Add a game** |
+| <img src="docs/images/game-profiles.png" alt="Game profiles: the Default and a game with its own keys and auto-switch"> | <img src="docs/images/game-add-picker.png" alt="Add a game from the running programs or the installed ones"> |
+
+<p align="center"><img src="docs/images/game-editor.png" alt="Full-screen profile editor: the whole keyboard flat, remapped keys blue, turned-off keys red" width="820"><br><sub>The full-screen editor that opens when a game's profile switches in</sub></p>
 
 ## Install
 
@@ -80,6 +80,7 @@ Download from the [latest release](https://github.com/TyroneMadison/Macally-Stud
 - **Admin windows on Windows.** Windows does not let a normal app send keys to an app running as administrator. Turn on **Run as administrator** in Settings if you need that.
 - **Some games** read the keyboard directly (raw input) and see the physical key, not the remapped one.
 - **All keyboards.** Bindings apply to every connected keyboard for now.
+- **Games behind a launcher.** A game profile watches the exe you add (a Steam game: anything in its install folder). If the program you picked is only a launcher, start the game and add it from Running instead. Microsoft Store (UWP) apps are not detected.
 - **Caps Lock on macOS.** macOS reports Caps Lock once per press, not as a press and a release, so a Caps Lock binding sends a quick tap even while you hold the key, and Caps Lock itself still turns on and off.
 - **Password fields on macOS.** While a secure text field has focus, macOS hides key presses from all apps, so remaps pause there.
 - **After an update on macOS**, open System Settings → Privacy & Security, remove Macally Studio from Accessibility and Input Monitoring with the minus button, and add it again (the app is not signed yet, so macOS treats each version as a new app).
@@ -109,18 +110,30 @@ Installers come from GitHub Actions, which holds the update signing key. To comp
 
 [![Latest release](https://img.shields.io/github/v/release/TyroneMadison/Macally-Studio?label=latest%20release&color=4C8DFF&style=for-the-badge)](https://github.com/TyroneMadison/Macally-Studio/releases/latest) [![Full changelog](https://img.shields.io/badge/full%20changelog-CHANGELOG.md-3DD68C?style=for-the-badge)](CHANGELOG.md) [![Commits](https://img.shields.io/github/commit-activity/t/TyroneMadison/Macally-Studio?label=commits&color=8E8E97&style=flat-square)](https://github.com/TyroneMadison/Macally-Studio/commits/main)
 
-Legend: ✨ new · 🐛 fix · 🎨 look and feel · 🔖 version bump
+Legend: ✨ new · 🐛 fix · 🔥 removed · 🎨 look and feel · 🔖 version bump
 
-### 🧪 Unreleased · Gaming profiles, backend only
+### 🧪 Unreleased · Gaming profiles
 
-![unreleased](https://img.shields.io/badge/unreleased-main-F5A524?style=for-the-badge) ![commits](https://img.shields.io/badge/commits-3-8E8E97?style=flat-square) ![scope](https://img.shields.io/badge/scope-backend%20only-8E8E97?style=flat-square)
+![unreleased](https://img.shields.io/badge/unreleased-main-F5A524?style=for-the-badge) ![commits](https://img.shields.io/badge/commits-10-8E8E97?style=flat-square)
 
-The engine side of gaming profiles is on `main`. The screens that use it come in a later version, once their mockups are approved, so nothing in the app changes yet.
+On `main`, coming in the next version: every game gets its own keys, which switch in while the game is in front and back when you leave it. The 3D keyboard no longer jitters while it turns, a key is remapped by clicking, and play/pause is gone (remapping is always on).
 
 - ✨ Game profiles in the store: each game gets its own profile, with the game's exe or install folder, icon and auto-switch flag [`3cf8937`](https://github.com/TyroneMadison/Macally-Studio/commit/3cf8937)
 - ✨ Tell which game an app starts: the exe of a program, shortcut or Start-menu app, or a Steam game's install folder; share the icon cache [`31e70be`](https://github.com/TyroneMadison/Macally-Studio/commit/31e70be)
 - ✨ Switch to a game's profile while the game is in front and back when it loses focus or quits, debounced; commands and a profile-switched event for the coming games UI [`c0dc232`](https://github.com/TyroneMadison/Macally-Studio/commit/c0dc232)
+- 🐛 Fix the 3D keyboard jittering while it is rotated: the camera's own moves no longer come back to it as requests [`1c7e2ec`](https://github.com/TyroneMadison/Macally-Studio/commit/1c7e2ec)
+- 🔥 Remap by clicking only: remove Press a key, Pick key by pressing and the engine's Record mode [`21c4d5a`](https://github.com/TyroneMadison/Macally-Studio/commit/21c4d5a)
+- 🔥 Remove play/pause and the pause function everywhere: remapping is always on [`c0b5fdf`](https://github.com/TyroneMadison/Macally-Studio/commit/c0b5fdf)
+- ✨ Game profiles run on top of the Default profile, a key can be turned off, and a game knows its exe path [`8d37aae`](https://github.com/TyroneMadison/Macally-Studio/commit/8d37aae)
+- ✨ Game profiles UI: the game status in the rail corner, the detection notice, the Games panel and Add a game, after the mockups in docs/mockups [`7d8a24e`](https://github.com/TyroneMadison/Macally-Studio/commit/7d8a24e)
+- ✨ Full-screen profile editor: opens when a game's profile switches in, detected or picked by hand (04c) [`88489ba`](https://github.com/TyroneMadison/Macally-Studio/commit/88489ba)
+- 🎨 Editor and Game profiles polish: short Mac legends (cmd, opt, ctrl, pg up) on the flat keyboard, and a long exe path wraps beside the game instead of pushing Duplicate and Delete down [`d8e0bbb`](https://github.com/TyroneMadison/Macally-Studio/commit/d8e0bbb)
 - 🔀 [compare v1.3…main](https://github.com/TyroneMadison/Macally-Studio/compare/v1.3...main)
+
+<table><tr>
+<td><img src="docs/images/game-detected.png" alt="Notepad as a stand-in game: detected, its profile switched in and its editor opened"></td>
+<td><img src="docs/images/game-profiles.png" alt="Game profiles: the Default and a game with its own keys and auto-switch"></td>
+</tr></table>
 
 ### 🚀 v1.3 · Launch program
 
