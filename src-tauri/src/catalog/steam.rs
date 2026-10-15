@@ -122,16 +122,8 @@ pub fn scan(icons_dir: &Path) -> anyhow::Result<Vec<AppEntry>> {
     let Some(root) = steam_root().filter(|r| r.join("steamapps").is_dir()) else {
         return Ok(Vec::new()); // Steam not installed
     };
-    let folders = std::fs::read_to_string(root.join("steamapps").join("libraryfolders.vdf"))
-        .unwrap_or_default();
-    // The pre-2021 vdf lists only the extra libraries, so the root is always scanned.
-    let mut libraries = parse_library_folders(&folders);
-    let same = |l: &PathBuf| l.to_string_lossy().eq_ignore_ascii_case(&root.to_string_lossy());
-    if !libraries.iter().any(same) {
-        libraries.insert(0, root.clone());
-    }
     let mut out = Vec::new();
-    for lib in libraries {
+    for lib in libraries(&root) {
         let Ok(rd) = std::fs::read_dir(lib.join("steamapps")) else {
             continue;
         };
@@ -164,6 +156,37 @@ pub fn scan(icons_dir: &Path) -> anyhow::Result<Vec<AppEntry>> {
     }
     out.sort_by_cached_key(|e| e.name.to_lowercase());
     Ok(out)
+}
+
+/// Every library: the ones libraryfolders.vdf lists, plus the main one (the pre-2021 file lists
+/// only the extra libraries).
+fn libraries(root: &Path) -> Vec<PathBuf> {
+    let folders = std::fs::read_to_string(root.join("steamapps").join("libraryfolders.vdf")).unwrap_or_default();
+    let mut libraries = parse_library_folders(&folders);
+    let same = |l: &PathBuf| l.to_string_lossy().eq_ignore_ascii_case(&root.to_string_lossy());
+    if !libraries.iter().any(same) {
+        libraries.insert(0, root.to_path_buf());
+    }
+    libraries
+}
+
+/// `steamapps/common/<installdir>` of an installed game, from whichever library holds it.
+pub fn install_dir(appid: u32) -> Option<PathBuf> {
+    install_dir_in(&libraries(&steam_root()?), appid)
+}
+
+pub fn install_dir_in(libraries: &[PathBuf], appid: u32) -> Option<PathBuf> {
+    libraries.iter().find_map(|lib| {
+        let apps = lib.join("steamapps");
+        let text = std::fs::read_to_string(apps.join(format!("appmanifest_{appid}.acf"))).ok()?;
+        let vdf = keyvalues_parser::parse(&text).ok()?;
+        let dir = field(vdf.value.get_obj()?, "installdir")?;
+        // a folder inside steamapps/common, never the library itself or anything above it
+        if matches!(dir, "" | "." | "..") || dir.contains(['/', '\\']) {
+            return None;
+        }
+        Some(apps.join("common").join(dir)).filter(|d| d.is_dir())
+    })
 }
 
 #[cfg(test)]
@@ -271,6 +294,30 @@ mod tests {
         assert_eq!(parse_manifest(&manifest("620", "1026")), None);
         assert_eq!(parse_manifest(&manifest("228980", "4")), None);
         assert_eq!(parse_manifest("garbage"), None);
+    }
+
+    #[test]
+    fn install_dir_finds_the_game_folder_in_any_library() {
+        let root = std::env::temp_dir().join(format!("macally-steam-dirs-{}", std::process::id()));
+        let (main, extra) = (root.join("Steam"), root.join("SteamLibrary"));
+        let manifest_in = |lib: &Path, appid: &str, dir: &str| {
+            let apps = lib.join("steamapps");
+            std::fs::create_dir_all(apps.join("common")).unwrap();
+            let text = manifest(appid, "4").replace(r#""installdir"		"Portal 2""#, &format!(r#""installdir"		"{dir}""#));
+            std::fs::write(apps.join(format!("appmanifest_{appid}.acf")), text).unwrap();
+        };
+        manifest_in(&main, "440", "Team Fortress 2"); // its folder is missing
+        manifest_in(&extra, "620", "Portal 2");
+        std::fs::create_dir_all(extra.join("steamapps").join("common").join("Portal 2")).unwrap();
+        // a manifest must name a folder inside steamapps/common, never the library or above
+        manifest_in(&extra, "730", "..");
+        manifest_in(&extra, "570", r"..\..");
+        let libs = [main.clone(), extra.clone()];
+        assert_eq!(install_dir_in(&libs, 620), Some(extra.join("steamapps").join("common").join("Portal 2")));
+        for appid in [440, 730, 570, 999] {
+            assert_eq!(install_dir_in(&libs, appid), None, "{appid}");
+        }
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

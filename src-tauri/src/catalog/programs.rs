@@ -118,7 +118,7 @@ pub fn dedupe(lists: Vec<Vec<Found>>) -> Vec<AppEntry> {
 }
 
 #[cfg(target_os = "windows")]
-pub use win::scan;
+pub use win::{file_description, scan, shortcut_target};
 
 #[cfg(target_os = "windows")]
 mod win {

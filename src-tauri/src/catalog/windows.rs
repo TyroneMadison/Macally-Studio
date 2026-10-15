@@ -80,13 +80,18 @@ pub fn scan(icons_dir: &Path) -> anyhow::Result<Vec<AppEntry>> {
     let mut apps = programs::dedupe(lists);
     super::sort_entries(&mut apps, BUILTIN);
     for app in &mut apps {
-        let file = icons_dir.join(super::icon_file_name(&app.launch, "png"));
-        // ponytail: cached icons never refresh; delete <data_dir>/icons to rebuild them.
-        if file.is_file() || save_icon_png(&app.launch, &file).is_ok() {
-            app.icon = Some(file.to_string_lossy().into_owned());
-        }
+        app.icon = cached_icon(&app.launch, icons_dir);
     }
     Ok(apps)
+}
+
+/// The icon file of a parsing name (`shell:AppsFolder\<AppID>`, an .exe or a .lnk) in the icon cache,
+/// extracted on first use.
+#[cfg(target_os = "windows")]
+pub fn cached_icon(launch: &str, icons_dir: &Path) -> Option<String> {
+    let file = icons_dir.join(super::icon_file_name(launch, "png"));
+    // ponytail: cached icons never refresh; delete <data_dir>/icons to rebuild them.
+    (file.is_file() || save_icon_png(launch, &file).is_ok()).then(|| file.to_string_lossy().into_owned())
 }
 
 #[cfg(target_os = "windows")]

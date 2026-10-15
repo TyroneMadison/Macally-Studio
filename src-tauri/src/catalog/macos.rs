@@ -83,10 +83,7 @@ pub fn scan(icons_dir: &Path) -> anyhow::Result<Vec<AppEntry>> {
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_default();
         let name = info.display_name.or(info.name).unwrap_or(stem);
-        let file = icons_dir.join(super::icon_file_name(&info.id, "png"));
-        // ponytail: cached icons never refresh; delete <data_dir>/icons to rebuild them.
-        let icon = (file.is_file() || save_icon_png(&bundle, &file).is_ok())
-            .then(|| file.to_string_lossy().into_owned());
+        let icon = cached_icon(&bundle, &info.id, icons_dir);
         out.push(entry(&bundle, &info.id, name, icon));
     }
     super::sort_entries(&mut out, PINNED);
@@ -96,6 +93,14 @@ pub fn scan(icons_dir: &Path) -> anyhow::Result<Vec<AppEntry>> {
 #[cfg(not(target_os = "macos"))]
 pub fn scan(_icons_dir: &Path) -> anyhow::Result<Vec<AppEntry>> {
     Ok(Vec::new())
+}
+
+/// The icon file of an app bundle in the icon cache, rendered on first use.
+#[cfg(target_os = "macos")]
+pub fn cached_icon(bundle: &Path, bundle_id: &str, icons_dir: &Path) -> Option<String> {
+    let file = icons_dir.join(super::icon_file_name(bundle_id, "png"));
+    // ponytail: cached icons never refresh; delete <data_dir>/icons to rebuild them.
+    (file.is_file() || save_icon_png(bundle, &file).is_ok()).then(|| file.to_string_lossy().into_owned())
 }
 
 /// NSWorkspace icon of a bundle (covers .icns and Assets.car apps) -> 64 px PNG file.

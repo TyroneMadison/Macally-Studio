@@ -14,7 +14,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
-use crate::profiles::Store;
+use crate::profiles::{Game, Store};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -37,6 +37,45 @@ pub fn icon_file_name(launch: &str, ext: &str) -> String {
         (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
     });
     format!("{h:016x}.{ext}")
+}
+
+/// The game an entry starts, for its game profile: the exe it runs (bundle id on macOS), or for a
+/// Steam game its install folder. Store apps and links name no exe: those are added while they run.
+pub fn game_for(entry: &AppEntry) -> anyhow::Result<Game> {
+    let (exe, folder) = match entry.kind.as_str() {
+        "bundle" => (entry.launch.clone(), None),
+        "steam" => {
+            let appid = entry.launch.strip_prefix("steam://rungameid/").and_then(|id| id.parse().ok());
+            (String::new(), appid.and_then(steam::install_dir).map(|d| d.to_string_lossy().into_owned()))
+        }
+        _ => (program_exe(&entry.launch).unwrap_or_default(), None),
+    };
+    anyhow::ensure!(
+        !exe.is_empty() || folder.is_some(),
+        "cannot tell which program {} runs; start it, then add it from the running apps",
+        entry.name
+    );
+    let icon = entry.icon.clone().filter(|p| Path::new(p).is_file());
+    Ok(Game { name: entry.name.clone(), exe, folder, icon, auto_switch: true })
+}
+
+/// The exe file name a Windows launch string runs: an .exe, a shortcut's target, or a Start-menu
+/// app id that is a path (`shell:AppsFolder\{known folder}\Tool\tool.exe`).
+fn program_exe(launch: &str) -> Option<String> {
+    let file = launch.strip_prefix(r"shell:AppsFolder\").unwrap_or(launch);
+    let file = if file.to_ascii_lowercase().ends_with(".lnk") { shortcut_target(file)? } else { file.to_string() };
+    let name = file.rsplit(['\\', '/']).next()?;
+    name.to_ascii_lowercase().ends_with(".exe").then(|| name.to_string())
+}
+
+#[cfg(target_os = "windows")]
+fn shortcut_target(lnk: &str) -> Option<String> {
+    programs::shortcut_target(Path::new(lnk))
+}
+
+#[cfg(not(target_os = "windows"))]
+fn shortcut_target(_lnk: &str) -> Option<String> {
+    None
 }
 
 /// Built-ins first (in `pinned` order, then by name), then everything else by name.
@@ -201,6 +240,43 @@ mod tests {
         assert_eq!((v[0].name.as_str(), v[0].kind.as_str()), ("Tool", "path"));
         assert_eq!(add_path(&store, exe).unwrap().len(), 1);
         assert_eq!(load_cached(&store), v);
+        std::fs::remove_dir_all(&store.data_dir).unwrap();
+    }
+
+    fn program(kind: &str, launch: &str) -> AppEntry {
+        AppEntry { kind: kind.into(), ..entry("app:x", "Tool", launch) }
+    }
+
+    #[test]
+    fn a_game_from_a_program_is_its_exe() {
+        let g = game_for(&program("path", r"D:\Games\Tool\Tool.EXE")).unwrap();
+        assert_eq!((g.name.as_str(), g.exe.as_str(), g.folder.as_deref(), g.auto_switch), ("Tool", "Tool.EXE", None, true));
+        let start_menu = program("aumid", r"shell:AppsFolder\{7C5A40EF-A0FB-4BFC-874A-C0F2E0B9FA8E}\Tool\tool.exe");
+        assert_eq!(game_for(&start_menu).unwrap().exe, "tool.exe");
+        assert_eq!(game_for(&program("bundle", "com.valvesoftware.portal2")).unwrap().exe, "com.valvesoftware.portal2");
+    }
+
+    #[test]
+    fn a_program_that_names_no_exe_is_added_while_it_runs_instead() {
+        for e in [
+            program("aumid", r"shell:AppsFolder\Microsoft.MinecraftUWP_8wekyb3d8bbwe!App"),
+            program("path", r"D:\Docs\readme.txt"),
+            program("steam", "steam://rungameid/4294967295"),
+            program("steam", "steam://rungameid/x"),
+        ] {
+            let err = game_for(&e).unwrap_err().to_string();
+            assert!(err.contains("running apps"), "{}: {err}", e.launch);
+        }
+    }
+
+    #[test]
+    fn a_game_keeps_its_icon_only_when_the_file_exists() {
+        let store = crate::profiles::temp_store("catalog-game-icon");
+        let icon = store.data_dir.join("tool.png");
+        std::fs::write(&icon, b"png").unwrap();
+        let with = |icon: &Path| AppEntry { icon: Some(icon.to_string_lossy().into_owned()), ..program("path", r"C:\Tool\tool.exe") };
+        assert_eq!(game_for(&with(&icon)).unwrap().icon, Some(icon.to_string_lossy().into_owned()));
+        assert_eq!(game_for(&with(&store.data_dir.join("gone.png"))).unwrap().icon, None);
         std::fs::remove_dir_all(&store.data_dir).unwrap();
     }
 
