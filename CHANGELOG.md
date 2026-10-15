@@ -6,6 +6,17 @@ Every entry below is a commit from this repository's history. Versions go 1.0, 1
 
 Legend: ✨ new · 🐛 fix · 🎨 look and feel · 🔖 version bump
 
+## 🧪 Unreleased · Gaming profiles, backend only
+
+![unreleased](https://img.shields.io/badge/unreleased-main-F5A524?style=for-the-badge) ![commits](https://img.shields.io/badge/commits-3-8E8E97?style=flat-square) ![scope](https://img.shields.io/badge/scope-backend%20only-8E8E97?style=flat-square)
+
+The engine side of gaming profiles is on `main`. The screens that use it come in a later version, once their mockups are approved, so nothing in the app changes yet.
+
+- ✨ Game profiles in the store: each game gets its own profile, with the game's exe or install folder, icon and auto-switch flag [`3cf8937`](https://github.com/TyroneMadison/Macally-Studio/commit/3cf8937)
+- ✨ Tell which game an app starts: the exe of a program, shortcut or Start-menu app, or a Steam game's install folder; share the icon cache [`31e70be`](https://github.com/TyroneMadison/Macally-Studio/commit/31e70be)
+- ✨ Switch to a game's profile while the game is in front and back when it loses focus or quits, debounced; commands and a profile-switched event for the coming games UI [`c0dc232`](https://github.com/TyroneMadison/Macally-Studio/commit/c0dc232)
+- 🔀 [compare v1.3…main](https://github.com/TyroneMadison/Macally-Studio/compare/v1.3...main)
+
 ## 🚀 v1.3 · Launch program
 
 [![v1.3](https://img.shields.io/badge/v1.3-2026--10--14-4C8DFF?style=for-the-badge)](https://github.com/TyroneMadison/Macally-Studio/releases/tag/v1.3) ![commits](https://img.shields.io/badge/commits-2-8E8E97?style=flat-square)
