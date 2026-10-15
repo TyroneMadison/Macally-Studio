@@ -8,7 +8,7 @@
 
 Remap keys, launch apps and Steam games, and switch profiles automatically, on Windows and macOS.
 
-[![Version](https://img.shields.io/badge/Version-1.3-4C8DFF)](https://github.com/TyroneMadison/Macally-Studio/releases/latest)
+[![Version](https://img.shields.io/badge/Version-1.4-4C8DFF)](https://github.com/TyroneMadison/Macally-Studio/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=data:image/svg%2Bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0wIDBoMTEuNHYxMS40SDB6TTEyLjYgMEgyNHYxMS40SDEyLjZ6TTAgMTIuNmgxMS40VjI0SDB6TTEyLjYgMTIuNkgyNFYyNEgxMi42eiIvPjwvc3ZnPg==)](#windows)
 [![macOS](https://img.shields.io/badge/macOS-Intel%20%7C%20Apple%20Silicon-000000?logo=apple&logoColor=white)](#macos)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DD68C)](LICENSE)
@@ -110,13 +110,13 @@ Installers come from GitHub Actions, which holds the update signing key. To comp
 
 [![Latest release](https://img.shields.io/github/v/release/TyroneMadison/Macally-Studio?label=latest%20release&color=4C8DFF&style=for-the-badge)](https://github.com/TyroneMadison/Macally-Studio/releases/latest) [![Full changelog](https://img.shields.io/badge/full%20changelog-CHANGELOG.md-3DD68C?style=for-the-badge)](CHANGELOG.md) [![Commits](https://img.shields.io/github/commit-activity/t/TyroneMadison/Macally-Studio?label=commits&color=8E8E97&style=flat-square)](https://github.com/TyroneMadison/Macally-Studio/commits/main)
 
-Legend: ✨ new · 🐛 fix · 🔥 removed · 🎨 look and feel · 🔖 version bump
+Legend: ✨ new · 🐛 fix · 🔥 removed · 🎨 look and feel · 📝 docs · 🔖 version bump
 
-### 🧪 Unreleased · Gaming profiles
+### 🎮 v1.4 · Gaming profiles
 
-![unreleased](https://img.shields.io/badge/unreleased-main-F5A524?style=for-the-badge) ![commits](https://img.shields.io/badge/commits-10-8E8E97?style=flat-square)
+[![v1.4](https://img.shields.io/badge/v1.4-2026--10--15-4C8DFF?style=for-the-badge)](https://github.com/TyroneMadison/Macally-Studio/releases/tag/v1.4) ![commits](https://img.shields.io/badge/commits-14-8E8E97?style=flat-square)
 
-On `main`, coming in the next version: every game gets its own keys, which switch in while the game is in front and back when you leave it. The 3D keyboard no longer jitters while it turns, a key is remapped by clicking, and play/pause is gone (remapping is always on).
+Every game gets its own keys, which switch in while the game is in front and back when you leave it. The 3D keyboard no longer jitters while it turns, a key is remapped by clicking, and play/pause is gone (remapping is always on).
 
 - ✨ Game profiles in the store: each game gets its own profile, with the game's exe or install folder, icon and auto-switch flag [`3cf8937`](https://github.com/TyroneMadison/Macally-Studio/commit/3cf8937)
 - ✨ Tell which game an app starts: the exe of a program, shortcut or Start-menu app, or a Steam game's install folder; share the icon cache [`31e70be`](https://github.com/TyroneMadison/Macally-Studio/commit/31e70be)
@@ -128,7 +128,8 @@ On `main`, coming in the next version: every game gets its own keys, which switc
 - ✨ Game profiles UI: the game status in the rail corner, the detection notice, the Games panel and Add a game, after the mockups in docs/mockups [`7d8a24e`](https://github.com/TyroneMadison/Macally-Studio/commit/7d8a24e)
 - ✨ Full-screen profile editor: opens when a game's profile switches in, detected or picked by hand (04c) [`88489ba`](https://github.com/TyroneMadison/Macally-Studio/commit/88489ba)
 - 🎨 Editor and Game profiles polish: short Mac legends (cmd, opt, ctrl, pg up) on the flat keyboard, and a long exe path wraps beside the game instead of pushing Duplicate and Delete down [`d8e0bbb`](https://github.com/TyroneMadison/Macally-Studio/commit/d8e0bbb)
-- 🔀 [compare v1.3…main](https://github.com/TyroneMadison/Macally-Studio/compare/v1.3...main)
+- 📝 README, changelog and real screenshots [`eded7f7`](https://github.com/TyroneMadison/Macally-Studio/commit/eded7f7) [`4dcf5b4`](https://github.com/TyroneMadison/Macally-Studio/commit/4dcf5b4) [`278bc48`](https://github.com/TyroneMadison/Macally-Studio/commit/278bc48)
+- 🔖 Version 1.4 · [compare v1.3…v1.4](https://github.com/TyroneMadison/Macally-Studio/compare/v1.3...v1.4)
 
 <table><tr>
 <td><img src="docs/images/game-detected.png" alt="Notepad as a stand-in game: detected, its profile switched in and its editor opened"></td>
