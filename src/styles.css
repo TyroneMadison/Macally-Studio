@@ -535,6 +535,7 @@ button.game-row.selected { border-color: rgba(76, 141, 255, 0.6); }
 .gd-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .gd-head h2 { margin: 0; font-size: 22px; }
 .gd-head .btn { height: 38px; padding: 0 16px; font-size: 14px; }
+.gd-head .grow { flex: 1 1 0; } /* a long exe path wraps instead of pushing the buttons down */
 .gd-place { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .gd-auto {
   display: flex; align-items: center; gap: 16px; padding: 16px 18px; border-radius: 14px;

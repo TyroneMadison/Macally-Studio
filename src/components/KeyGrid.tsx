@@ -13,6 +13,8 @@ export type KeyGridProps = {
 };
 
 const GAP = 0.1; // between caps, in key units, like the 3D keyboard
+/** Mac legends too long for a flat cap. */
+const SHORT: Record<string, string> = { command: "cmd", option: "opt", control: "ctrl", "page up": "pg up", "page down": "pg dn" };
 /** Top edge of a row: the F row is 0.6u tall, then a little air (Keyboard3D's rowTop). */
 const rowTop = (row: number) => (row === 0 ? 0 : 0.75 + (row - 1));
 
@@ -26,7 +28,8 @@ export default function KeyGrid({ layout, bindings, legends, selected, onSelect,
     <div className="kg" style={{ aspectRatio: `${width} / ${depth}` }}>
       {layout.keys.map((k) => {
         const b = bindings[k.code];
-        const legend = (legends === "mac" ? k.mac : k.win) || (k.code === "Space" ? "" : k.code);
+        const printed = legends === "mac" ? k.mac : k.win;
+        const legend = SHORT[printed] ?? (printed || (k.code === "Space" ? "" : k.code));
         const what = b && note(b);
         const cls = ["kg-key", b ? (b.action.type === "block" ? "off" : "remapped") : "", k.code === selected ? "selected" : ""]
           .filter(Boolean)

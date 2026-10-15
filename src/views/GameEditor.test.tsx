@@ -59,6 +59,12 @@ describe("KeyGrid", () => {
     expect(html).toContain('<span class="kg-note">Off</span>');
     expect(html).toMatch(/class="kg-key"[^>]*data-code="KeyA"/);
   });
+
+  it("shortens long Mac legends to fit a flat cap", () => {
+    const html = renderToStaticMarkup(<KeyGrid layout={layout} bindings={{}} legends="mac" selected={null} onSelect={noop} note={() => ""} />);
+    expect(html).toMatch(/data-code="MetaLeft"[^>]*><span class="kg-leg">cmd<\/span>/);
+    expect(html).toMatch(/data-code="AltLeft"[^>]*><span class="kg-leg">opt<\/span>/);
+  });
 });
 
 describe("Full-screen profile editor", () => {
