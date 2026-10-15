@@ -525,7 +525,7 @@ mod tests {
     }
 
     fn game(exe: &str) -> Game {
-        Game { name: format!("Game {exe}"), exe: exe.into(), folder: None, icon: Some(format!("{exe}.png")), auto_switch: true }
+        Game { name: format!("Game {exe}"), exe: exe.into(), folder: None, path: None, icon: Some(format!("{exe}.png")), auto_switch: true }
     }
 
     /// The profile of the game `exe`.

@@ -137,6 +137,7 @@ describe("catalog entries", () => {
     expect(describeAction({ type: "key_combo", keys: ["Meta", "Tab"] }, [], [], false).title).toBe("Win + Tab");
     expect(describeAction({ type: "switch_profile", profile: "gaming" }, [], []).title).toBe("gaming");
     expect(describeAction(undefined, [], []).title).toBe("Not remapped");
+    expect(describeAction({ type: "block" }, [], [])).toEqual({ type: "Block", title: "Disabled", detail: "The key does nothing" });
   });
 });
 

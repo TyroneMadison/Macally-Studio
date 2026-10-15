@@ -50,6 +50,7 @@ describe("profile helpers", () => {
   it("actionLabel", () => {
     const calc = app("aumid", "shell:AppsFolder\\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App", "Calculator");
     expect(actionLabel({ type: "key_combo", keys: ["Win", "Tab"] }, [], [])).toBe("Win + Tab");
+    expect(actionLabel({ type: "block" }, [], [])).toBe("Disabled");
     expect(
       actionLabel({ type: "launch_app", app: { kind: "aumid", id: "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App" } }, [calc], []),
     ).toBe("Calculator");

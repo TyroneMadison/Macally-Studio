@@ -46,5 +46,6 @@ Key names are the standard web key codes: `KeyA`, `Digit1`, `F13`, `Eject`, `Num
 | `command` | `program`, `args`, `hidden` | `{ "type": "command", "program": "powershell", "args": ["-File", "C:\\scripts\\x.ps1"], "hidden": true }` |
 | `switch_profile` | `profile` | `{ "type": "switch_profile", "profile": "gaming" }` |
 | `pass_through` | none | `{ "type": "pass_through" }` |
+| `block` | none | `{ "type": "block" }` (the key does nothing) |
 
 `launch_app` kinds: `aumid` with `id` (Windows Start-menu and Store apps), `path` with `path` and `args`, `bundle` with `id` (macOS).

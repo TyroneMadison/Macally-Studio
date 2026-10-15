@@ -72,6 +72,9 @@ pub struct Game {
     /// Every program inside this folder counts as the game (a Steam game's install folder).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub folder: Option<String>,
+    /// The exe's full path when it is known, to show where the game lives.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
     /// Cached icon file in `<data_dir>/icons`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
@@ -253,8 +256,9 @@ impl Store {
         self.write(&Profile { builtin: builtins().any(|b| b.id == p.id), game, ..p.clone() })
     }
 
-    /// A new profile for `game` with a copy of `base`'s bindings, or the profile it already has.
-    pub fn add_game(&self, game: Game, base: &str) -> anyhow::Result<Profile> {
+    /// A new profile for `game`, or the profile it already has. It starts with a copy of `base`'s
+    /// bindings, or with none: a game's profile runs on top of the Default profile (AppState::activate).
+    pub fn add_game(&self, game: Game, base: Option<&str>) -> anyhow::Result<Profile> {
         if let Some(p) = self.list_profiles()?.into_iter().find(|p| p.game.as_ref().is_some_and(|g| g.same(&game))) {
             return Ok(p);
         }
@@ -265,7 +269,10 @@ impl Store {
             builtin: false,
             hotkey: None,
             auto_apps: Vec::new(),
-            bindings: self.get_profile(base)?.bindings,
+            bindings: match base {
+                Some(id) => self.get_profile(id)?.bindings,
+                None => BTreeMap::new(),
+            },
             game: Some(game),
         };
         self.write(&p)?;

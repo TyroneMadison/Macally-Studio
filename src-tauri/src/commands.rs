@@ -72,11 +72,24 @@ impl AppState {
         Ok(())
     }
 
+    /// What the engine runs for `p`: a game's own keys on top of the Default profile's, so a game
+    /// changes only the keys it binds. Any other profile runs exactly its own keys.
+    fn engine_profile(&self, p: &Profile) -> Profile {
+        match (&p.game, self.profile(default_profile_id())) {
+            (Some(_), Ok(base)) => {
+                let mut bindings = base.bindings;
+                bindings.extend(p.bindings.clone());
+                Profile { bindings, ..p.clone() }
+            }
+            _ => p.clone(),
+        }
+    }
+
     /// Engine table + settings.json. Every switch goes through here: the UI, tray, hotkeys,
     /// the switch_profile action and Auto mode (which remembers the last manual pick itself).
     pub fn activate(&self, id: &str) -> anyhow::Result<()> {
         let p = self.profile(id)?;
-        self.engine.set_profile(&p);
+        self.engine.set_profile(&self.engine_profile(&p));
         let settings = {
             let mut s = self.settings.lock().unwrap();
             s.active_profile = p.id;
@@ -96,11 +109,14 @@ impl AppState {
         self.written(&p)
     }
 
-    /// After a profile file changed: reload the list, and the engine if it is the active one.
+    /// After a profile file changed: reload the list, and the engine when it runs that profile (the
+    /// active one, or the Default under an active game's).
     fn written(&self, p: &Profile) -> anyhow::Result<()> {
         self.reload()?;
-        if p.id == self.active_id() {
-            self.engine.set_profile(p);
+        if let Ok(active) = self.profile(&self.active_id())
+            && (p.id == active.id || (p.id == default_profile_id() && active.game.is_some()))
+        {
+            self.engine.set_profile(&self.engine_profile(&active));
         }
         Ok(())
     }
@@ -133,9 +149,10 @@ impl AppState {
         self.profiles.lock().unwrap().iter().filter(|p| p.game.is_some()).cloned().collect()
     }
 
-    /// A game's own profile, starting with the bindings of `base` (the OS default when None).
+    /// A game's own profile, starting with a copy of `base`'s bindings, or with none (the Default
+    /// profile's keys then work in the game until it changes them).
     pub fn add_game(&self, game: Game, base: Option<&str>) -> anyhow::Result<Profile> {
-        let p = self.store.lock().unwrap().add_game(game, base.unwrap_or(default_profile_id()))?;
+        let p = self.store.lock().unwrap().add_game(game, base)?;
         self.reload()?;
         Ok(p)
     }
@@ -353,7 +370,8 @@ pub fn get_games(state: State<'_, AppState>) -> Vec<Profile> {
 }
 
 /// Adds the game an entry of get_running_apps or get_catalog starts and returns its profile (the one
-/// it already has when added before). `base`: the profile whose bindings it starts with.
+/// it already has when added before). `base`: a profile whose bindings it starts with; none starts
+/// empty, on top of the Default profile.
 /// Async: reading a shortcut or the Steam libraries never holds up the window.
 #[tauri::command(async)]
 pub fn add_game(app: AppHandle, state: State<'_, AppState>, entry: AppEntry, base: Option<String>) -> CmdResult<Profile> {
@@ -387,17 +405,26 @@ pub fn set_game_auto_switch(state: State<'_, AppState>, id: Option<String>, on: 
 mod tests {
     use super::*;
     use crate::keymap;
-    use crate::profiles::temp_store;
+    use crate::profiles::{Binding, temp_store};
+    use std::collections::BTreeMap;
 
     /// Records which profile the engine was last given.
     #[derive(Default)]
     struct Spy {
         last: Mutex<String>,
+        ran: Mutex<Option<Profile>>,
+    }
+
+    impl Spy {
+        fn ran(&self) -> Profile {
+            self.ran.lock().unwrap().clone().expect("the engine got a profile")
+        }
     }
 
     impl EngineLike for Spy {
         fn set_profile(&self, p: &Profile) {
             *self.last.lock().unwrap() = p.id.clone();
+            *self.ran.lock().unwrap() = Some(p.clone());
         }
     }
 
@@ -472,12 +499,42 @@ mod tests {
         assert!(!saved.close_to_tray);
     }
 
+    fn portal() -> Game {
+        Game { name: "Portal 2".into(), exe: "portal2.exe".into(), folder: None, path: None, icon: None, auto_switch: true }
+    }
+
+    #[test]
+    fn a_game_profile_runs_on_top_of_the_default_profile() {
+        let (state, spy) = setup("cmd-layers");
+        let p = state.add_game(portal(), None).unwrap();
+        assert!(p.bindings.is_empty(), "a new game starts with no keys of its own");
+        let off = Binding { mods: vec![], action: crate::actions::Action::Block };
+        state.save(Profile { bindings: BTreeMap::from([("F3".to_string(), off.clone())]), ..p.clone() }).unwrap();
+        state.activate(&p.id).unwrap();
+        let default = state.profile(default_profile_id()).unwrap();
+        let ran = spy.ran();
+        assert_eq!(ran.id, p.id);
+        assert_eq!(ran.bindings["F3"], off, "the game's own key wins");
+        for (code, b) in default.bindings.iter().filter(|(c, _)| c.as_str() != "F3") {
+            assert_eq!(ran.bindings.get(code), Some(b), "{code} comes from the Default profile");
+        }
+        // a change to the Default reaches the engine while the game runs
+        let f20 = Binding { mods: vec![], action: crate::actions::Action::KeyCombo { keys: vec!["KeyA".into()] } };
+        let mut edited = default.clone();
+        edited.bindings.insert("F20".into(), f20.clone());
+        state.save(edited).unwrap();
+        assert_eq!(spy.ran().bindings.get("F20"), Some(&f20));
+        assert!(!state.profile(&p.id).unwrap().bindings.contains_key("F20"), "only the engine merges; the game's file stays its own");
+        // every other profile runs exactly its own keys
+        state.activate("macos-default").unwrap();
+        assert_eq!(spy.ran().bindings, state.profile("macos-default").unwrap().bindings);
+    }
+
     #[test]
     fn games_are_added_listed_toggled_and_removed() {
         let (state, spy) = setup("cmd-games");
-        let game = Game { name: "Portal 2".into(), exe: "portal2.exe".into(), folder: None, icon: None, auto_switch: true };
-        let p = state.add_game(game, None).unwrap();
-        assert_eq!(p.bindings, state.profile(default_profile_id()).unwrap().bindings, "starts as the OS default");
+        let p = state.add_game(portal(), None).unwrap();
+        assert!(p.bindings.is_empty(), "starts with no keys of its own; the Default profile covers the rest");
         assert_eq!(state.games(), vec![p.clone()]);
         assert_eq!(state.profiles.lock().unwrap().len(), 3);
 

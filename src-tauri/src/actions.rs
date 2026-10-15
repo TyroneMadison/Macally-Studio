@@ -24,14 +24,16 @@ pub enum Action {
     /// Also what a "pause_toggle" binding from before pausing was removed loads as.
     #[serde(alias = "pause_toggle")]
     PassThrough,
+    /// The key does nothing at all (Win off in a game, say).
+    Block,
 }
 
-/// Runs every action except KeyCombo and PassThrough (the engine injects those itself).
+/// Runs every action except KeyCombo, PassThrough and Block (the engine handles those itself).
 /// Called on the engine's worker thread, never inside the keyboard hook.
 pub fn run(action: &Action, app: &tauri::AppHandle) -> anyhow::Result<()> {
     use tauri_plugin_opener::OpenerExt;
     match action {
-        Action::KeyCombo { .. } | Action::PassThrough => Ok(()),
+        Action::KeyCombo { .. } | Action::PassThrough | Action::Block => Ok(()),
         Action::LaunchApp { app: target } => launch(target),
         Action::SteamGame { appid, .. } => Ok(app.opener().open_url(format!("steam://rungameid/{appid}"), None::<&str>)?),
         Action::Open { target } if has_scheme(target) => Ok(app.opener().open_url(target.as_str(), None::<&str>)?),
@@ -312,6 +314,7 @@ mod tests {
     #[test]
     fn unit_variants() {
         round_trip(Action::PassThrough, json!({ "type": "pass_through" }));
+        round_trip(Action::Block, json!({ "type": "block" }));
     }
 
     #[test]

@@ -28,7 +28,8 @@ export type Action =
   | { type: "open"; target: string }
   | { type: "command"; program: string; args: string[]; hidden: boolean }
   | { type: "switch_profile"; profile: string }
-  | { type: "pass_through" };
+  | { type: "pass_through" }
+  | { type: "block" }; // the key does nothing at all
 
 export type Binding = { mods: Modifier[]; action: Action };
 

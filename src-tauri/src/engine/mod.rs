@@ -292,6 +292,7 @@ impl Engine {
         }
         match action {
             Action::KeyCombo { keys } => self.platform.send_combo(&keys, true, lift),
+            Action::Block => {} // swallowed, down and up, and nothing else
             other if fire => {
                 let _ = self.tx.send(EngineMsg::Run(other));
             }

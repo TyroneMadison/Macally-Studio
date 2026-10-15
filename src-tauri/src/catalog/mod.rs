@@ -42,13 +42,21 @@ pub fn icon_file_name(launch: &str, ext: &str) -> String {
 /// The game an entry starts, for its game profile: the exe it runs (bundle id on macOS), or for a
 /// Steam game its install folder. Store apps and links name no exe: those are added while they run.
 pub fn game_for(entry: &AppEntry) -> anyhow::Result<Game> {
-    let (exe, folder) = match entry.kind.as_str() {
-        "bundle" => (entry.launch.clone(), None),
+    let (exe, folder, path) = match entry.kind.as_str() {
+        "bundle" => (entry.launch.clone(), None, None),
         "steam" => {
             let appid = entry.launch.strip_prefix("steam://rungameid/").and_then(|id| id.parse().ok());
-            (String::new(), appid.and_then(steam::install_dir).map(|d| d.to_string_lossy().into_owned()))
+            (String::new(), appid.and_then(steam::install_dir).map(|d| d.to_string_lossy().into_owned()), None)
         }
-        _ => (program_exe(&entry.launch).unwrap_or_default(), None),
+        _ => match program_exe(&entry.launch) {
+            Some(file) => {
+                let name = file.rsplit(['\\', '/']).next().unwrap_or(&file).to_string();
+                // a Start-menu id names its exe inside a known folder ({GUID}\...), not a full path
+                let path = (!file.starts_with('{')).then_some(file);
+                (name, None, path)
+            }
+            None => (String::new(), None, None),
+        },
     };
     anyhow::ensure!(
         !exe.is_empty() || folder.is_some(),
@@ -56,16 +64,15 @@ pub fn game_for(entry: &AppEntry) -> anyhow::Result<Game> {
         entry.name
     );
     let icon = entry.icon.clone().filter(|p| Path::new(p).is_file());
-    Ok(Game { name: entry.name.clone(), exe, folder, icon, auto_switch: true })
+    Ok(Game { name: entry.name.clone(), exe, folder, path, icon, auto_switch: true })
 }
 
-/// The exe file name a Windows launch string runs: an .exe, a shortcut's target, or a Start-menu
-/// app id that is a path (`shell:AppsFolder\{known folder}\Tool\tool.exe`).
+/// The exe a Windows launch string runs: an .exe, a shortcut's target, or a Start-menu app id that
+/// is a path (`shell:AppsFolder\{known folder}\Tool\tool.exe`).
 fn program_exe(launch: &str) -> Option<String> {
     let file = launch.strip_prefix(r"shell:AppsFolder\").unwrap_or(launch);
     let file = if file.to_ascii_lowercase().ends_with(".lnk") { shortcut_target(file)? } else { file.to_string() };
-    let name = file.rsplit(['\\', '/']).next()?;
-    name.to_ascii_lowercase().ends_with(".exe").then(|| name.to_string())
+    file.to_ascii_lowercase().ends_with(".exe").then_some(file)
 }
 
 #[cfg(target_os = "windows")]
@@ -251,9 +258,12 @@ mod tests {
     fn a_game_from_a_program_is_its_exe() {
         let g = game_for(&program("path", r"D:\Games\Tool\Tool.EXE")).unwrap();
         assert_eq!((g.name.as_str(), g.exe.as_str(), g.folder.as_deref(), g.auto_switch), ("Tool", "Tool.EXE", None, true));
+        assert_eq!(g.path.as_deref(), Some(r"D:\Games\Tool\Tool.EXE"), "where it lives, to show");
         let start_menu = program("aumid", r"shell:AppsFolder\{7C5A40EF-A0FB-4BFC-874A-C0F2E0B9FA8E}\Tool\tool.exe");
-        assert_eq!(game_for(&start_menu).unwrap().exe, "tool.exe");
-        assert_eq!(game_for(&program("bundle", "com.valvesoftware.portal2")).unwrap().exe, "com.valvesoftware.portal2");
+        let g = game_for(&start_menu).unwrap();
+        assert_eq!((g.exe.as_str(), g.path.as_deref()), ("tool.exe", None), "a known-folder id is no path");
+        let mac = game_for(&program("bundle", "com.valvesoftware.portal2")).unwrap();
+        assert_eq!((mac.exe.as_str(), mac.path.as_deref()), ("com.valvesoftware.portal2", None));
     }
 
     #[test]

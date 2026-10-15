@@ -68,5 +68,7 @@ export function actionLabel(a: Action, catalog: AppEntry[], profiles: Profile[])
       return `Switch to ${profiles.find((p) => p.id === a.profile)?.name ?? a.profile}`;
     case "pass_through":
       return "Pass-through";
+    case "block":
+      return "Disabled";
   }
 }

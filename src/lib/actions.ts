@@ -192,5 +192,7 @@ export function describeAction(
       };
     case "pass_through":
       return { type: "Pass-through", title: "Sends its own key", detail: "" };
+    case "block":
+      return { type: "Block", title: "Disabled", detail: "The key does nothing" };
   }
 }

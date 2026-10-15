@@ -150,6 +150,17 @@ fn remapped_mods_reports_taken_modifiers_and_chord_modifiers() {
 }
 
 #[test]
+fn a_blocked_key_does_nothing_at_all() {
+    // the Win key turned off for a game: Windows never sees it, so Start never opens
+    let (e, fake, rx) = engine(&profile(&[("MetaLeft", &[], Action::Block)]));
+    assert!(e.handle_key("MetaLeft", 0, true, ""));
+    assert!(e.handle_key("MetaLeft", 0, true, "")); // auto-repeat
+    assert!(e.handle_key("MetaLeft", 0, false, ""));
+    assert!(sent(&fake).is_empty());
+    assert!(rx.try_recv().is_err(), "nothing to run");
+}
+
+#[test]
 fn reserved_hotkey_chords_pass_through() {
     let (e, _fake, _rx) = engine(&profile(&[("KeyP", &[Modifier::Ctrl, Modifier::Alt], combo(&["KeyA"]))]));
     e.set_reserved(vec![("KeyP".into(), CTRL | ALT)]);

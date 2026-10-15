@@ -288,7 +288,7 @@ fn community_example_profile_loads() {
 }
 
 fn game(name: &str, exe: &str) -> Game {
-    Game { name: name.into(), exe: exe.into(), folder: None, icon: None, auto_switch: true }
+    Game { name: name.into(), exe: exe.into(), folder: None, path: None, icon: None, auto_switch: true }
 }
 
 #[test]
@@ -298,7 +298,9 @@ fn game_json_is_camel_case_and_switches_by_default() {
     let v = serde_json::to_value(&p).unwrap();
     assert_eq!(v["game"], json!({ "name": "Portal 2", "exe": "portal2.exe", "autoSwitch": true }));
     let g: Game = serde_json::from_value(json!({ "name": "Portal 2", "folder": r"G:\SteamLibrary\steamapps\common\Portal 2" })).unwrap();
-    assert!(g.auto_switch && g.exe.is_empty());
+    assert!(g.auto_switch && g.exe.is_empty() && g.path.is_none());
+    let at = Game { path: Some(r"D:\Games\Portal 2\portal2.exe".into()), ..game("Portal 2", "portal2.exe") };
+    assert_eq!(serde_json::to_value(&at).unwrap()["path"], r"D:\Games\Portal 2\portal2.exe");
 }
 
 #[test]
@@ -314,20 +316,22 @@ fn a_game_gets_its_own_profile_with_a_copy_of_the_base_bindings() {
     let st = temp_store("game-add");
     st.ensure_builtins().unwrap();
     let base = st.get_profile("windows-default").unwrap();
-    let p = st.add_game(game("Portal 2", "portal2.exe"), "windows-default").unwrap();
+    let p = st.add_game(game("Portal 2", "portal2.exe"), Some("windows-default")).unwrap();
     assert_eq!((p.id.as_str(), p.name.as_str()), ("portal-2", "Portal 2"));
     assert!(!p.builtin && p.hotkey.is_none() && p.auto_apps.is_empty());
     assert_eq!(p.bindings, base.bindings);
     assert_eq!(p.game, Some(game("Portal 2", "portal2.exe")));
     assert_eq!(st.get_profile("portal-2").unwrap(), p);
     // the same game again, by exe in any case: the profile it already has
-    assert_eq!(st.add_game(game("Portal 2 again", "PORTAL2.EXE"), "macos-default").unwrap(), p);
+    assert_eq!(st.add_game(game("Portal 2 again", "PORTAL2.EXE"), Some("macos-default")).unwrap(), p);
     // a different game with the same name gets its own id
-    let beta = st.add_game(game("Portal 2", "portal2_beta.exe"), "macos-default").unwrap();
+    let beta = st.add_game(game("Portal 2", "portal2_beta.exe"), Some("macos-default")).unwrap();
     assert_eq!(beta.id, "portal-2-2");
     assert!(beta.bindings.is_empty());
-    assert!(st.add_game(game("X", "x.exe"), "nope").is_err());
+    assert!(st.add_game(game("X", "x.exe"), Some("nope")).is_err());
     assert_eq!(st.list_profiles().unwrap().len(), 4);
+    // no base: only the game's own keys, which start empty (the Default profile covers the rest)
+    assert!(st.add_game(game("Rocket League", "rocketleague.exe"), None).unwrap().bindings.is_empty());
 }
 
 #[test]
@@ -335,17 +339,17 @@ fn a_folder_game_is_the_same_game_by_folder() {
     let st = temp_store("game-folder");
     st.ensure_builtins().unwrap();
     let folder = |dir: &str| Game { folder: Some(dir.into()), ..game("Portal 2", "") };
-    let p = st.add_game(folder(r"G:\Steam\steamapps\common\Portal 2"), "windows-default").unwrap();
-    assert_eq!(st.add_game(folder(r"g:\steam\steamapps\common\portal 2"), "windows-default").unwrap(), p);
+    let p = st.add_game(folder(r"G:\Steam\steamapps\common\Portal 2"), Some("windows-default")).unwrap();
+    assert_eq!(st.add_game(folder(r"g:\steam\steamapps\common\portal 2"), Some("windows-default")).unwrap(), p);
     // two folder games never count as the same game through their empty exe
-    assert_ne!(st.add_game(folder(r"G:\Steam\steamapps\common\Portal"), "windows-default").unwrap().id, p.id);
+    assert_ne!(st.add_game(folder(r"G:\Steam\steamapps\common\Portal"), Some("windows-default")).unwrap().id, p.id);
 }
 
 #[test]
 fn only_the_game_commands_change_a_profiles_game() {
     let st = temp_store("game-keep");
     st.ensure_builtins().unwrap();
-    let p = st.add_game(game("Portal 2", "portal2.exe"), "windows-default").unwrap();
+    let p = st.add_game(game("Portal 2", "portal2.exe"), Some("windows-default")).unwrap();
     // the UI saves profiles without knowing about games
     st.save_profile(&Profile { game: None, name: "Portal".into(), ..p.clone() }).unwrap();
     let saved = st.get_profile("portal-2").unwrap();
@@ -361,7 +365,7 @@ fn only_the_game_commands_change_a_profiles_game() {
 fn auto_switch_is_stored_per_game() {
     let st = temp_store("game-toggle");
     st.ensure_builtins().unwrap();
-    st.add_game(game("Portal 2", "portal2.exe"), "windows-default").unwrap();
+    st.add_game(game("Portal 2", "portal2.exe"), Some("windows-default")).unwrap();
     let off = st.set_game_auto_switch("portal-2", false).unwrap();
     assert!(!off.game.unwrap().auto_switch);
     assert!(!st.get_profile("portal-2").unwrap().game.unwrap().auto_switch);
@@ -414,7 +418,7 @@ fn upgrading_from_1_3_keeps_every_profile_and_binding() {
     assert!(settings.game_auto_switch, "games start out switching");
 
     // adding and toggling a game leaves every other profile alone
-    st.add_game(game("Portal 2", "portal2.exe"), "windows-default").unwrap();
+    st.add_game(game("Portal 2", "portal2.exe"), Some("windows-default")).unwrap();
     st.set_game_auto_switch("portal-2", false).unwrap();
     let mut after = snapshot(&st);
     assert!(after.remove("profiles/portal-2.json").is_some());
