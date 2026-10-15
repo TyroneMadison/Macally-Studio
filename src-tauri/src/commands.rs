@@ -9,7 +9,7 @@ use serde_json::json;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::catalog::{self, AppEntry};
-use crate::profiles::{Profile, Settings, Store, default_profile_id};
+use crate::profiles::{Game, Profile, Settings, Store, default_profile_id};
 
 /// The 107-key layout, compiled into the binary (no resource file to ship).
 pub const LAYOUT_JSON: &str = include_str!("../../src/lib/layout.json");
@@ -130,6 +130,34 @@ impl AppState {
         Ok(p)
     }
 
+    /// The profiles that belong to a game.
+    pub fn games(&self) -> Vec<Profile> {
+        self.profiles.lock().unwrap().iter().filter(|p| p.game.is_some()).cloned().collect()
+    }
+
+    /// A game's own profile, starting with the bindings of `base` (the OS default when None).
+    pub fn add_game(&self, game: Game, base: Option<&str>) -> anyhow::Result<Profile> {
+        let p = self.store.lock().unwrap().add_game(game, base.unwrap_or(default_profile_id()))?;
+        self.reload()?;
+        Ok(p)
+    }
+
+    /// Auto-switch for one game, or for every game when `id` is None.
+    pub fn set_game_auto_switch(&self, id: Option<&str>, on: bool) -> anyhow::Result<()> {
+        let Some(id) = id else {
+            let s = Settings { game_auto_switch: on, ..self.settings.lock().unwrap().clone() };
+            return self.save_settings(s);
+        };
+        let p = self.store.lock().unwrap().set_game_auto_switch(id, on)?;
+        self.written(&p)
+    }
+
+    /// Deletes a game's profile. Returns the id that became active when it was the active one.
+    pub fn remove_game(&self, id: &str) -> anyhow::Result<Option<String>> {
+        anyhow::ensure!(self.profile(id)?.game.is_some(), "{id:?} is not a game profile");
+        self.delete(id)
+    }
+
     /// The UI may hold a stale activeProfile; only `activate` changes it.
     pub fn save_settings(&self, mut s: Settings) -> anyhow::Result<()> {
         s.active_profile = self.active_id();
@@ -216,11 +244,18 @@ pub fn get_settings(state: State<'_, AppState>) -> Settings {
 #[tauri::command]
 pub fn save_settings(app: AppHandle, state: State<'_, AppState>, settings: Settings) -> CmdResult<()> {
     let login = |s: &Settings| (s.start_at_login, s.run_as_admin);
-    let login_changed = login(&state.settings.lock().unwrap()) != login(&settings);
+    let switching = |s: &Settings| (s.switch_mode, s.game_auto_switch);
+    let (login_changed, switching_changed) = {
+        let old = state.settings.lock().unwrap();
+        (login(&old) != login(&settings), switching(&old) != switching(&settings))
+    };
     state.save_settings(settings).map_err(err)?;
     crate::control::resync(&app);
     if login_changed {
         crate::control::sync_autostart(&app);
+    }
+    if switching_changed {
+        crate::foreground::refresh();
     }
     Ok(())
 }
@@ -317,6 +352,58 @@ pub async fn add_catalog_entry(app: AppHandle, path: String) -> CmdResult<Vec<Ap
     Ok(all)
 }
 
+// Games: each game has its own profile (`Profile::game`), active while the game is in front
+// (foreground.rs). Every automatic switch emits "profile-switched" (foreground::Switched).
+
+/// Programs with a window open now, with their icons: the running apps a game can be added from.
+#[tauri::command]
+pub async fn get_running_apps() -> CmdResult<Vec<AppEntry>> {
+    tauri::async_runtime::spawn_blocking(|| -> anyhow::Result<Vec<AppEntry>> {
+        let icons = Store::open()?.data_dir.join("icons");
+        std::fs::create_dir_all(&icons)?;
+        Ok(crate::foreground::running_apps(&icons))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(err)
+}
+
+#[tauri::command]
+pub fn get_games(state: State<'_, AppState>) -> Vec<Profile> {
+    state.games()
+}
+
+/// Adds the game an entry of get_running_apps or get_catalog starts and returns its profile (the one
+/// it already has when added before). `base`: the profile whose bindings it starts with.
+/// Async: reading a shortcut or the Steam libraries never holds up the window.
+#[tauri::command(async)]
+pub fn add_game(app: AppHandle, state: State<'_, AppState>, entry: AppEntry, base: Option<String>) -> CmdResult<Profile> {
+    let game = catalog::game_for(&entry).map_err(err)?;
+    let p = state.add_game(game, base.as_deref()).map_err(err)?;
+    crate::control::resync(&app);
+    crate::foreground::refresh();
+    Ok(p)
+}
+
+/// Deletes a game and its profile.
+#[tauri::command]
+pub fn remove_game(app: AppHandle, state: State<'_, AppState>, id: String) -> CmdResult<()> {
+    if let Some(active) = state.remove_game(&id).map_err(err)? {
+        emit_profile_changed(&app, &active);
+    }
+    crate::control::resync(&app);
+    crate::foreground::refresh();
+    Ok(())
+}
+
+/// Auto-switch on or off for one game (`id`), or for every game when `id` is null.
+#[tauri::command]
+pub fn set_game_auto_switch(state: State<'_, AppState>, id: Option<String>, on: bool) -> CmdResult<()> {
+    state.set_game_auto_switch(id.as_deref(), on).map_err(err)?;
+    crate::foreground::refresh();
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -408,6 +495,29 @@ mod tests {
         let saved = state.store.lock().unwrap().load_settings();
         assert_eq!(saved.active_profile, "macos-default");
         assert!(!saved.close_to_tray);
+    }
+
+    #[test]
+    fn games_are_added_listed_toggled_and_removed() {
+        let (state, spy) = setup("cmd-games");
+        let game = Game { name: "Portal 2".into(), exe: "portal2.exe".into(), folder: None, icon: None, auto_switch: true };
+        let p = state.add_game(game, None).unwrap();
+        assert_eq!(p.bindings, state.profile(default_profile_id()).unwrap().bindings, "starts as the OS default");
+        assert_eq!(state.games(), vec![p.clone()]);
+        assert_eq!(state.profiles.lock().unwrap().len(), 3);
+
+        state.set_game_auto_switch(Some("portal-2"), false).unwrap();
+        assert!(!state.profile("portal-2").unwrap().game.unwrap().auto_switch);
+        state.set_game_auto_switch(None, false).unwrap();
+        assert!(!state.settings.lock().unwrap().game_auto_switch);
+        assert!(!state.store.lock().unwrap().load_settings().game_auto_switch);
+        assert!(state.set_game_auto_switch(Some("macos-default"), true).is_err(), "not a game");
+
+        state.activate("portal-2").unwrap();
+        assert!(state.remove_game("macos-default").is_err(), "only game profiles go this way");
+        assert_eq!(state.remove_game("portal-2").unwrap().as_deref(), Some(default_profile_id()));
+        assert!(state.games().is_empty());
+        assert_eq!(*spy.last.lock().unwrap(), default_profile_id());
     }
 
     #[test]

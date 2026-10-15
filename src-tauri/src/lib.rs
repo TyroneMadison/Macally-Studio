@@ -74,6 +74,11 @@ pub fn run() {
             commands::get_catalog,
             commands::refresh_catalog,
             commands::add_catalog_entry,
+            commands::get_running_apps,
+            commands::get_games,
+            commands::add_game,
+            commands::remove_game,
+            commands::set_game_auto_switch,
             updater::check_update,
             updater::install_update,
         ])
