@@ -41,6 +41,18 @@ export type Profile = {
   hotkey: string | null;
   autoApps: string[]; // exe name (Windows) or bundle id (macOS)
   bindings: Record<string, Binding>; // key code -> binding
+  /** Set on a game's own profile (add_game); the UI never writes it. */
+  game?: Game;
+};
+
+/** The game a game profile belongs to; it switches in while the game is in front. */
+export type Game = {
+  name: string;
+  exe: string; // exe file name (Windows) or bundle id (macOS); empty when `folder` names the game
+  folder?: string; // any program inside counts as the game (Steam install folder)
+  path?: string; // the exe's full path, when known
+  icon?: string; // cached icon file
+  autoSwitch: boolean;
 };
 
 export type SwitchMode = "manual" | "hotkey" | "auto";
@@ -57,6 +69,7 @@ export type Settings = {
   runAsAdmin: boolean;
   windowsLegends: boolean;
   autoCheckUpdates: boolean;
+  gameAutoSwitch: boolean; // games switch to their own profiles while in front
 };
 
 export type AppEntry = {
@@ -65,8 +78,11 @@ export type AppEntry = {
   kind: "aumid" | "path" | "bundle" | "steam";
   launch: string;
   icon: string | null; // PNG path in the data dir's icons/ folder
-  source: "windows" | "macos" | "steam";
+  source: "windows" | "macos" | "steam" | "running"; // running: get_running_apps
 };
+
+/** Payload of "profile-switched": an automatic switch, to a game's profile or back from one. */
+export type Switched = { id: string; name: string; from: string; game: Game | null };
 
 export type KeyEvent = { code: string; mods: string[]; down: boolean; raw: string };
 

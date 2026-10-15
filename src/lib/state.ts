@@ -3,7 +3,7 @@ import { createContext, createElement, useCallback, useContext, useEffect, useMe
 import * as ipc from "./ipc";
 import layoutJson from "./layout.json";
 import { withBinding } from "./profile";
-import type { AppEntry, Binding, KeyEvent, Layout, Profile, Settings, Status, UpdateInfo } from "./types";
+import type { AppEntry, Binding, KeyEvent, Layout, Profile, Settings, Status, Switched, UpdateInfo } from "./types";
 
 const layout: Layout = layoutJson;
 
@@ -16,6 +16,10 @@ export type AppState = {
   layout: Layout;
   lastKey: KeyEvent | null;
   update: UpdateInfo | null; // last "update-available" event
+  /** The last automatic switch ("profile-switched") and when it came. */
+  switched: (Switched & { at: number }) | null;
+  /** The game profile whose game was detected in front; null while none is. */
+  liveGame: string | null;
   refresh(): Promise<void>;
   setActiveProfile(id: string): Promise<void>;
   /** Merges `patch` onto the saved profile with that id (a new id saves `patch` as is). */
@@ -24,6 +28,11 @@ export type AppState = {
   saveBinding(id: string, code: string, update: (old?: Binding) => Binding | null): Promise<void>;
   /** Merges `patch` onto the saved settings. */
   saveSettings(patch: Partial<Settings>): Promise<void>;
+  /** The game an entry starts gets its own profile (`base`: a profile to copy keys from). */
+  addGame(entry: AppEntry, base: string | null): Promise<Profile>;
+  removeGame(id: string): Promise<void>;
+  /** One game, or every game when `id` is null. */
+  setGameAutoSwitch(id: string | null, on: boolean): Promise<void>;
 };
 
 type Data = Pick<AppState, "profiles" | "settings" | "catalog" | "status">;
@@ -62,6 +71,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [lastKey, setLastKey] = useState<KeyEvent | null>(null);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [switched, setSwitched] = useState<AppState["switched"]>(null);
+  const [liveGame, setLiveGame] = useState<string | null>(null);
 
   const latest = useRef<Data | null>(null);
   const [queue] = useState(serial);
@@ -83,7 +94,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     );
     const subs = [
       ipc.onKeyEvent(setLastKey),
-      ipc.onProfileChanged(() => void refresh()),
+      ipc.onProfileChanged(({ id }) => {
+        // a switch to anything but the detected game's profile ends "live"; a detection arrives right after
+        setLiveGame((live) => (live === id ? live : null));
+        void refresh();
+      }),
+      ipc.onProfileSwitched((s) => {
+        setSwitched({ ...s, at: Date.now() });
+        setLiveGame(s.game ? s.id : null);
+      }),
       ipc.onCatalogProgress(({ done, total }) => {
         if (done === total) void refresh();
       }),
@@ -104,6 +123,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       activeProfile: data.profiles.find((p) => p.id === data.settings.activeProfile) ?? null,
       lastKey,
       update,
+      switched,
+      liveGame,
       refresh,
       setActiveProfile: (id) => thenRefresh(ipc.setActiveProfile(id)),
       saveProfile: (patch) =>
@@ -111,8 +132,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       saveBinding: (id, code, update) =>
         queued((d) => ipc.saveProfile(withBinding(d.profiles.find((p) => p.id === id)!, code, update))),
       saveSettings: (patch) => queued((d) => ipc.saveSettings({ ...d.settings, ...patch })),
+      addGame: (entry, base) => queue(() => ipc.addGame(entry, base).then(async (p) => (await refresh(), p))),
+      removeGame: (id) => queued(() => ipc.removeGame(id)),
+      setGameAutoSwitch: (id, on) => queued(() => ipc.setGameAutoSwitch(id, on)),
     };
-  }, [data, lastKey, update, refresh, queue]);
+  }, [data, lastKey, update, switched, liveGame, refresh, queue]);
 
   if (error) return createElement("p", { className: "load-error" }, `Could not load Macally Studio data: ${error}`);
   if (!value) return null;

@@ -1,7 +1,7 @@
 // Typed wrappers over Tauri invoke/listen. Command names are the Rust fn names in commands.rs.
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { AppEntry, CatalogProgress, KeyEvent, Layout, Profile, Settings, Status, UpdateInfo } from "./types";
+import type { AppEntry, CatalogProgress, KeyEvent, Layout, Profile, Settings, Status, Switched, UpdateInfo } from "./types";
 
 export const getLayout = () => invoke<Layout>("get_layout");
 export const getProfiles = () => invoke<Profile[]>("get_profiles");
@@ -19,6 +19,13 @@ export const saveSettings = (settings: Settings) => invoke<void>("save_settings"
 export const getCatalog = () => invoke<AppEntry[]>("get_catalog");
 export const refreshCatalog = () => invoke<AppEntry[]>("refresh_catalog");
 export const addCatalogEntry = (path: string) => invoke<AppEntry[]>("add_catalog_entry", { path });
+/** Programs with a window open now, with icons: the running games a game can be added from. */
+export const getRunningApps = () => invoke<AppEntry[]>("get_running_apps");
+/** The game an entry starts gets its own profile; `base` is a profile to copy keys from (null: start empty). */
+export const addGame = (entry: AppEntry, base: string | null) => invoke<Profile>("add_game", { entry, base });
+export const removeGame = (id: string) => invoke<void>("remove_game", { id });
+/** Auto-switch for one game, or for every game when `id` is null. */
+export const setGameAutoSwitch = (id: string | null, on: boolean) => invoke<void>("set_game_auto_switch", { id, on });
 
 /** Key Monitor: the engine reports every key to the UI while on (and while the window shows). */
 export const setMonitor = (on: boolean) => invoke<void>("set_monitor", { on });
@@ -36,3 +43,4 @@ export const onProfileChanged = on<{ id: string }>("profile-changed");
 export const onCatalogProgress = on<CatalogProgress>("catalog-progress");
 export const onUpdateAvailable = on<UpdateInfo>("update-available");
 export const onForegroundChanged = on<{ name: string }>("foreground-changed");
+export const onProfileSwitched = on<Switched>("profile-switched");
