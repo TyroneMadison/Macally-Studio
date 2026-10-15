@@ -6,16 +6,18 @@ Every entry below is a commit from this repository's history. Versions go 1.0, 1
 
 Legend: ✨ new · 🐛 fix · 🔥 removed · 🎨 look and feel · 📝 docs · 🔖 version bump
 
-## 🧪 Unreleased · Fn key
+## 🔑 v1.5 · Fn key
 
-![unreleased](https://img.shields.io/badge/unreleased-main-F5A524?style=for-the-badge)
+[![v1.5](https://img.shields.io/badge/v1.5-2026--10--15-4C8DFF?style=for-the-badge)](https://github.com/TyroneMadison/Macally-Studio/releases/tag/v1.5) ![commits](https://img.shields.io/badge/commits-4-8E8E97?style=flat-square)
 
-The Fn key on this Macally is handled inside the keyboard’s firmware and never reaches the computer — a HID probe confirmed the keyboard reports only standard keyboard, consumer and system-control usages, with no vendor collection, so no app can see Fn. The app now says this plainly instead of letting you map Fn to nothing.
+The Fn key on this Macally is handled inside the keyboard’s firmware and never reaches the computer — a HID probe confirmed the keyboard reports only standard keyboard, consumer and system-control usages, with no vendor collection, so no app can see Fn. The app now says this plainly and offers what works instead.
 
-- ✨ Selecting Fn explains it plainly and offers what works instead: jump to Left Control, Caps Lock or Left Command and give it any action in the Default or a game profile, or make Caps Lock send Ctrl in one click. It also explains fn + esc (Fn-Lock), which makes the top row send F1–F15 that can be remapped. In the key inspector and the full-screen game editor
-- 🔥 Fn is marked firmware-only on the keyboard and is no longer offered as a remappable source
-- ✨ One-click “Reset Fn key” clears any leftover Fn binding from every profile (game profiles included) and rebuilds the engine, with a confirmation toast; old Fn bindings are also cleared automatically on launch
-- 🐛 The nav-cluster key printed fn, likely a second fn key handled by the keyboard, now says so and points to the Key Monitor to check it, instead of quietly taking a remap that may never fire
+- ✨ Selecting Fn explains it plainly and offers what works instead: jump to Left Control, Caps Lock or Left Command and give it any action in the Default or a game profile, or make Caps Lock send Ctrl in one click. It also explains fn + esc (Fn-Lock), which makes the top row send F1–F15 that can be remapped. In the key inspector and the full-screen game editor [`3919858`](https://github.com/TyroneMadison/Macally-Studio/commit/3919858)
+- 🔥 Fn is marked firmware-only on the keyboard and is no longer offered as a remappable source [`3919858`](https://github.com/TyroneMadison/Macally-Studio/commit/3919858)
+- ✨ One-click “Reset Fn key” clears any leftover Fn binding from every profile (game profiles included) and rebuilds the engine, with a confirmation toast; old Fn bindings are also cleared automatically on launch [`144227c`](https://github.com/TyroneMadison/Macally-Studio/commit/144227c) [`3919858`](https://github.com/TyroneMadison/Macally-Studio/commit/3919858)
+- 🐛 The nav-cluster key printed fn, likely a second fn key handled by the keyboard, now says so and points to the Key Monitor to check it, instead of quietly taking a remap that may never fire [`3919858`](https://github.com/TyroneMadison/Macally-Studio/commit/3919858)
+- 📝 Changelog [`e1caa8c`](https://github.com/TyroneMadison/Macally-Studio/commit/e1caa8c)
+- 🔖 Version 1.5 · [compare v1.4…v1.5](https://github.com/TyroneMadison/Macally-Studio/compare/v1.4...v1.5)
 
 ## 🎮 v1.4 · Gaming profiles
 
