@@ -1,5 +1,5 @@
-//! Tray / menu bar: status line, profile list, pause, open, check for updates, quit.
-//! Rebuilt on "profile-changed" / "paused-changed" and by `control::resync`.
+//! Tray / menu bar: status line, profile list, open, check for updates, quit.
+//! Rebuilt on "profile-changed" and by `control::resync`.
 
 use tauri::menu::{CheckMenuItem, Menu, MenuBuilder, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -24,10 +24,8 @@ pub fn build(app: &AppHandle) -> anyhow::Result<()> {
             }
         })
         .build(app)?;
-    for event in ["profile-changed", "paused-changed"] {
-        let handle = app.clone();
-        app.listen_any(event, move |_| refresh(&handle));
-    }
+    let handle = app.clone();
+    app.listen_any("profile-changed", move |_| refresh(&handle));
     Ok(())
 }
 
@@ -43,26 +41,24 @@ pub fn refresh(app: &AppHandle) {
 
 fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     // copy everything out first: no lock is held while menu items are created on the main thread
-    let (paused, active, pause_key, profiles) = match app.try_state::<AppState>() {
+    let (active, profiles) = match app.try_state::<AppState>() {
         Some(state) => {
-            let s = state.settings.lock().unwrap().clone();
+            let active = state.active_id();
             let list: Vec<(String, String)> =
                 state.profiles.lock().unwrap().iter().map(|p| (p.id.clone(), p.name.clone())).collect();
-            (state.engine.is_paused(), s.active_profile, s.hotkeys.pause, list)
+            (active, list)
         }
-        None => (false, String::new(), String::new(), Vec::new()),
+        None => (String::new(), Vec::new()),
     };
     let version = crate::version::display(&app.package_info().version.to_string());
-    let (status, pause_label) = labels(paused, &version, &pause_key);
 
     let mut b = MenuBuilder::new(app)
-        .item(&MenuItem::with_id(app, "status", status, false, None::<&str>)?)
+        .item(&MenuItem::with_id(app, "status", status_line(&version), false, None::<&str>)?)
         .separator();
     for (id, name) in &profiles {
         b = b.item(&CheckMenuItem::with_id(app, format!("profile:{id}"), name, true, *id == active, None::<&str>)?);
     }
     b.separator()
-        .item(&CheckMenuItem::with_id(app, "pause", pause_label, true, paused, None::<&str>)?)
         .item(&MenuItem::with_id(app, "open", "Open Macally Studio", true, None::<&str>)?)
         .item(&MenuItem::with_id(app, "check-updates", "Check for updates", true, None::<&str>)?)
         .separator()
@@ -70,14 +66,8 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         .build()
 }
 
-/// The status line and the pause item's text.
-fn labels(paused: bool, version: &str, pause_key: &str) -> (String, String) {
-    let status = if paused { "Remapping paused" } else { "Remapping on" };
-    let pause = match pause_key {
-        "" => "Pause remapping".to_string(),
-        key => format!("Pause remapping ({key})"),
-    };
-    (format!("{status} · Version {version}"), pause)
+fn status_line(version: &str) -> String {
+    format!("Remapping on · Version {version}")
 }
 
 fn on_menu(app: &AppHandle, id: &str) {
@@ -86,7 +76,6 @@ fn on_menu(app: &AppHandle, id: &str) {
             crate::show_main(app);
             Ok(())
         }
-        "pause" => control::toggle_pause(app),
         "quit" => {
             app.exit(0);
             return;
@@ -133,14 +122,10 @@ pub fn on_window_event(window: &Window, event: &WindowEvent) {
 
 #[cfg(test)]
 mod tests {
-    use super::labels;
+    use super::status_line;
 
     #[test]
-    fn status_line_and_pause_item_text() {
-        assert_eq!(
-            labels(false, "1.0", "Ctrl+Alt+P"),
-            ("Remapping on · Version 1.0".to_string(), "Pause remapping (Ctrl+Alt+P)".to_string())
-        );
-        assert_eq!(labels(true, "1.2", ""), ("Remapping paused · Version 1.2".to_string(), "Pause remapping".to_string()));
+    fn status_line_names_the_version() {
+        assert_eq!(status_line("1.3"), "Remapping on · Version 1.3");
     }
 }

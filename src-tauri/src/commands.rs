@@ -22,8 +22,6 @@ pub fn get_layout() -> Result<serde_json::Value, String> {
 /// What profile/settings commands need from the remap engine; the engine implements it.
 pub trait EngineLike: Send + Sync {
     fn set_profile(&self, p: &Profile);
-    fn set_paused(&self, b: bool);
-    fn is_paused(&self) -> bool;
 }
 
 /// Shared app state. Locks are taken one at a time, never nested, so lock order cannot deadlock.
@@ -260,16 +258,9 @@ pub fn save_settings(app: AppHandle, state: State<'_, AppState>, settings: Setti
     Ok(())
 }
 
-#[tauri::command]
-pub fn set_paused(app: AppHandle, state: State<'_, AppState>, paused: bool) {
-    state.engine.set_paused(paused);
-    let _ = app.emit("paused-changed", json!({ "paused": paused }));
-}
-
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Status {
-    pub paused: bool,
     pub active_profile: String,
     pub hook_running: bool,
     pub device_found: bool,
@@ -284,7 +275,6 @@ pub struct Status {
 #[tauri::command(async)]
 pub fn get_status(app: AppHandle, state: State<'_, AppState>) -> Status {
     Status {
-        paused: state.engine.is_paused(),
         active_profile: state.active_id(),
         hook_running: crate::engine::hook_running(),
         device_found: crate::engine::device_found(),
@@ -409,10 +399,6 @@ mod tests {
         fn set_profile(&self, p: &Profile) {
             *self.last.lock().unwrap() = p.id.clone();
         }
-        fn set_paused(&self, _b: bool) {}
-        fn is_paused(&self) -> bool {
-            false
-        }
     }
 
     fn setup(tag: &str) -> (AppState, Arc<Spy>) {
@@ -512,7 +498,6 @@ mod tests {
     #[test]
     fn status_serializes_camel_case() {
         let s = Status {
-            paused: false,
             active_profile: "windows-default".into(),
             hook_running: true,
             device_found: true,
@@ -522,7 +507,7 @@ mod tests {
         };
         assert_eq!(
             serde_json::to_string(&s).unwrap(),
-            r#"{"paused":false,"activeProfile":"windows-default","hookRunning":true,"deviceFound":true,"version":"1.0.0","platform":"windows","permissionsOk":true}"#
+            r#"{"activeProfile":"windows-default","hookRunning":true,"deviceFound":true,"version":"1.0.0","platform":"windows","permissionsOk":true}"#
         );
     }
 

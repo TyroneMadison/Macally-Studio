@@ -187,7 +187,6 @@ pub struct Engine {
     platform: Box<dyn Platform>,
     tx: Sender<EngineMsg>,
     table: RwLock<Table>,
-    paused: AtomicBool,
     mode: AtomicU8,
     live: Mutex<Live>,
 }
@@ -198,7 +197,6 @@ impl Engine {
             platform,
             tx,
             table: RwLock::new(Table::default()),
-            paused: AtomicBool::new(false),
             mode: AtomicU8::new(Mode::Normal as u8),
             live: Mutex::new(Live::default()),
         }
@@ -219,14 +217,6 @@ impl Engine {
             }
         });
         *self.table.write().unwrap() = t;
-    }
-
-    pub fn set_paused(&self, paused: bool) {
-        self.paused.store(paused, Ordering::SeqCst);
-    }
-
-    pub fn is_paused(&self) -> bool {
-        self.paused.load(Ordering::SeqCst)
     }
 
     pub fn set_mode(&self, m: Mode) {
@@ -283,8 +273,6 @@ impl Engine {
                 };
                 let action = match hit {
                     None | Some(Action::PassThrough) => return false,
-                    // paused: only a PauseToggle key still works, or nothing could unpause
-                    Some(a) if self.is_paused() && !matches!(a, Action::PauseToggle) => return false,
                     Some(a) => a.clone(),
                 };
                 let lift = match &action {
@@ -338,12 +326,6 @@ fn debounce(last: &mut HashMap<String, Instant>, code: &str, now: Instant) -> bo
 impl EngineLike for Engine {
     fn set_profile(&self, p: &Profile) {
         Engine::set_profile(self, p)
-    }
-    fn set_paused(&self, b: bool) {
-        Engine::set_paused(self, b)
-    }
-    fn is_paused(&self) -> bool {
-        Engine::is_paused(self)
     }
 }
 

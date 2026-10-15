@@ -24,7 +24,6 @@ export type AppState = {
   saveBinding(id: string, code: string, update: (old?: Binding) => Binding | null): Promise<void>;
   /** Merges `patch` onto the saved settings. */
   saveSettings(patch: Partial<Settings>): Promise<void>;
-  setPaused(b: boolean): Promise<void>;
 };
 
 type Data = Pick<AppState, "profiles" | "settings" | "catalog" | "status">;
@@ -85,9 +84,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const subs = [
       ipc.onKeyEvent(setLastKey),
       ipc.onProfileChanged(() => void refresh()),
-      ipc.onPausedChanged(({ paused }) =>
-        setData((d) => (d?.status ? { ...d, status: { ...d.status, paused } } : d)),
-      ),
       ipc.onCatalogProgress(({ done, total }) => {
         if (done === total) void refresh();
       }),
@@ -115,7 +111,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       saveBinding: (id, code, update) =>
         queued((d) => ipc.saveProfile(withBinding(d.profiles.find((p) => p.id === id)!, code, update))),
       saveSettings: (patch) => queued((d) => ipc.saveSettings({ ...d.settings, ...patch })),
-      setPaused: (b) => thenRefresh(ipc.setPaused(b)),
     };
   }, [data, lastKey, update, refresh, queue]);
 

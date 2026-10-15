@@ -21,7 +21,7 @@ const mine: Profile = {
   autoApps: [],
   bindings: {
     F13: { mods: [], action: { type: "pass_through" } },
-    F14: { mods: [], action: { type: "pause_toggle" } },
+    F14: { mods: [], action: { type: "key_combo", keys: ["Meta", "KeyV"] } },
   },
 };
 

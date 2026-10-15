@@ -3,8 +3,6 @@ export type View = "keyboard" | "profiles" | "settings";
 export type RailProps = {
   view: View;
   onNav: (v: View) => void;
-  paused: boolean;
-  onTogglePause: () => void;
 };
 
 // 24x24 stroke icon paths
@@ -28,7 +26,7 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-export default function Rail({ view, onNav, paused, onTogglePause }: RailProps) {
+export default function Rail({ view, onNav }: RailProps) {
   return (
     <nav className="rail" aria-label="Main">
       <div className="rail-mark" title="Macally Studio">M</div>
@@ -45,17 +43,6 @@ export default function Rail({ view, onNav, paused, onTogglePause }: RailProps) 
           <Icon d={ICONS[n.id]} />
         </button>
       ))}
-      <div className="rail-spacer" />
-      <button
-        type="button"
-        className={"rail-btn pause" + (paused ? " on" : "")}
-        title={paused ? "Resume remapping" : "Pause remapping"}
-        aria-label={paused ? "Resume remapping" : "Pause remapping"}
-        aria-pressed={paused}
-        onClick={onTogglePause}
-      >
-        <Icon d={paused ? "M8 5l11 7-11 7z" : "M8 5v14M16 5v14"} />
-      </button>
     </nav>
   );
 }

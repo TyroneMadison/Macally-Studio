@@ -103,7 +103,6 @@ pub enum SwitchMode {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Hotkeys {
-    pub pause: String,
     pub next_profile: String,
     pub prev_profile: String,
     pub show: String,
@@ -112,7 +111,6 @@ pub struct Hotkeys {
 impl Default for Hotkeys {
     fn default() -> Self {
         Hotkeys {
-            pause: "Ctrl+Alt+P".into(),
             next_profile: "Ctrl+Alt+]".into(),
             prev_profile: "Ctrl+Alt+[".into(),
             show: "Ctrl+Alt+M".into(),

@@ -73,10 +73,7 @@ fn settings_defaults_match_spec() {
     assert_eq!(v["schema"], 1);
     assert_eq!(v["activeProfile"], default_profile_id());
     assert_eq!(v["switchMode"], "auto");
-    assert_eq!(
-        v["hotkeys"],
-        json!({ "pause": "Ctrl+Alt+P", "nextProfile": "Ctrl+Alt+]", "prevProfile": "Ctrl+Alt+[", "show": "Ctrl+Alt+M" })
-    );
+    assert_eq!(v["hotkeys"], json!({ "nextProfile": "Ctrl+Alt+]", "prevProfile": "Ctrl+Alt+[", "show": "Ctrl+Alt+M" }));
     assert!(s.start_at_login && s.close_to_tray && s.windows_legends && s.auto_check_updates);
     assert!(!s.run_as_admin);
 }
@@ -85,7 +82,7 @@ fn settings_defaults_match_spec() {
 fn partial_settings_fill_in_defaults() {
     let s: Settings = serde_json::from_str(r#"{ "switchMode": "manual" }"#).unwrap();
     assert_eq!(s.switch_mode, SwitchMode::Manual);
-    assert_eq!(s.hotkeys.pause, "Ctrl+Alt+P");
+    assert_eq!(s.hotkeys.show, "Ctrl+Alt+M");
     assert!(s.close_to_tray);
 }
 
@@ -395,6 +392,7 @@ fn upgrading_from_1_3_keeps_every_profile_and_binding() {
         st.write(p).unwrap();
     }
     fs::write(st.data_dir.join("profiles").join("photo.json"), PHOTO_1_3).unwrap();
+    // 1.3 still had a pause hotkey; it is ignored now
     let settings_1_3 = r#"{ "schema": 1, "activeProfile": "photo", "switchMode": "hotkey",
         "hotkeys": { "pause": "Ctrl+Alt+P", "nextProfile": "Ctrl+Alt+N", "prevProfile": "Ctrl+Alt+B", "show": "Ctrl+Alt+M" },
         "startAtLogin": false, "closeToTray": true, "runAsAdmin": false, "windowsLegends": false, "autoCheckUpdates": true }"#;

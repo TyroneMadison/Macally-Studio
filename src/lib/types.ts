@@ -28,7 +28,6 @@ export type Action =
   | { type: "open"; target: string }
   | { type: "command"; program: string; args: string[]; hidden: boolean }
   | { type: "switch_profile"; profile: string }
-  | { type: "pause_toggle" }
   | { type: "pass_through" };
 
 export type Binding = { mods: Modifier[]; action: Action };
@@ -45,7 +44,7 @@ export type Profile = {
 
 export type SwitchMode = "manual" | "hotkey" | "auto";
 
-export type Hotkeys = { pause: string; nextProfile: string; prevProfile: string; show: string };
+export type Hotkeys = { nextProfile: string; prevProfile: string; show: string };
 
 export type Settings = {
   schema: number;
@@ -71,7 +70,6 @@ export type AppEntry = {
 export type KeyEvent = { code: string; mods: string[]; down: boolean; raw: string };
 
 export type Status = {
-  paused: boolean;
   activeProfile: string;
   hookRunning: boolean;
   deviceFound: boolean;

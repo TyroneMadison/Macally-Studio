@@ -56,7 +56,6 @@ function tabFor(a?: Action): Tab {
     case "command":
       return "command";
     case "switch_profile":
-    case "pause_toggle":
       return "profile";
     case "pass_through":
       return "pass";
@@ -94,9 +93,7 @@ function PickerDialog({ keyCode, initial, catalog, profiles, onPick, onClose }: 
   const [program, setProgram] = useState(start?.type === "command" ? start.program : "");
   const [args, setArgs] = useState(start?.type === "command" ? joinArgs(start.args) : "");
   const [hidden, setHidden] = useState(start?.type === "command" ? start.hidden : true);
-  const [special, setSpecial] = useState<Action | null>(
-    start?.type === "switch_profile" || start?.type === "pause_toggle" ? start : null,
-  );
+  const [special, setSpecial] = useState<Action | null>(start?.type === "switch_profile" ? start : null);
   const dialog = useRef<HTMLDivElement>(null);
   const list = fresh ?? catalog;
   const keyLabel = formatChord([keyCode]);
@@ -300,15 +297,6 @@ function PickerDialog({ keyCode, initial, catalog, profiles, onPick, onClose }: 
                       </button>
                     );
                   })}
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={special?.type === "pause_toggle"}
-                    className={"ap-item" + (special?.type === "pause_toggle" ? " on" : "")}
-                    onClick={() => setSpecial({ type: "pause_toggle" })}
-                  >
-                    Pause / resume remapping
-                  </button>
                 </div>
               </section>
             )}

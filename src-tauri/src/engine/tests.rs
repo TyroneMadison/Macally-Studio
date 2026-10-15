@@ -150,18 +150,6 @@ fn remapped_mods_reports_taken_modifiers_and_chord_modifiers() {
 }
 
 #[test]
-fn paused_passes_everything_except_pause_toggle() {
-    let (e, fake, rx) = engine(&profile(&[("F3", &[], combo(&["KeyA"])), ("F15", &[], Action::PauseToggle)]));
-    e.set_paused(true);
-    assert!(e.is_paused());
-    assert!(!e.handle_key("F3", 0, true, ""));
-    assert!(!e.handle_key("F3", 0, false, ""));
-    assert!(sent(&fake).is_empty());
-    assert!(e.handle_key("F15", 0, true, ""));
-    assert_eq!(rx.try_recv(), Ok(EngineMsg::Run(Action::PauseToggle)));
-}
-
-#[test]
 fn reserved_hotkey_chords_pass_through() {
     let (e, _fake, _rx) = engine(&profile(&[("KeyP", &[Modifier::Ctrl, Modifier::Alt], combo(&["KeyA"]))]));
     e.set_reserved(vec![("KeyP".into(), CTRL | ALT)]);

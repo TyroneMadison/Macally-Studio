@@ -21,7 +21,8 @@ pub enum Action {
     Open { target: String },
     Command { program: String, args: Vec<String>, hidden: bool },
     SwitchProfile { profile: String },
-    PauseToggle,
+    /// Also what a "pause_toggle" binding from before pausing was removed loads as.
+    #[serde(alias = "pause_toggle")]
     PassThrough,
 }
 
@@ -37,7 +38,6 @@ pub fn run(action: &Action, app: &tauri::AppHandle) -> anyhow::Result<()> {
         Action::Open { target } => Ok(app.opener().open_path(target.as_str(), None::<&str>)?),
         Action::Command { program, args, hidden } => spawn(program, args, *hidden),
         Action::SwitchProfile { profile } => crate::control::activate(app, profile),
-        Action::PauseToggle => crate::control::toggle_pause(app),
     }
 }
 
@@ -311,8 +311,14 @@ mod tests {
 
     #[test]
     fn unit_variants() {
-        round_trip(Action::PauseToggle, json!({ "type": "pause_toggle" }));
         round_trip(Action::PassThrough, json!({ "type": "pass_through" }));
+    }
+
+    #[test]
+    fn a_pause_binding_from_before_loads_as_pass_through() {
+        // pausing is gone; a key bound to it in an older profile goes back to being itself
+        assert_eq!(serde_json::from_value::<Action>(json!({ "type": "pause_toggle" })).unwrap(), Action::PassThrough);
+        assert_eq!(serde_json::to_value(Action::PassThrough).unwrap(), json!({ "type": "pass_through" }));
     }
 
     #[test]

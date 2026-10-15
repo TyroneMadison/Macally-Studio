@@ -66,7 +66,6 @@ pub fn run() {
             commands::set_active_profile,
             commands::get_settings,
             commands::save_settings,
-            commands::set_paused,
             commands::get_status,
             commands::set_monitor,
             commands::get_catalog,

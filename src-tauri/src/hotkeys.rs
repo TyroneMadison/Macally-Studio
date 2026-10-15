@@ -1,4 +1,4 @@
-//! Global hotkeys: pause and show always; next/prev and each profile's own hotkey in Hotkey mode.
+//! Global hotkeys: show always; next/prev and each profile's own hotkey in Hotkey mode.
 //! Every registered chord is also reserved in the engine, so a remap can never eat it.
 
 use std::sync::Arc;
@@ -57,7 +57,6 @@ fn code_of(token: &str) -> Option<String> {
 pub fn register_all(app: &AppHandle, settings: &Settings, profiles: &[Profile]) -> anyhow::Result<()> {
     app.global_shortcut().unregister_all()?;
     let mut reserved = Vec::new();
-    bind(app, &settings.hotkeys.pause, &mut reserved, |app| log(control::toggle_pause(app)));
     bind(app, &settings.hotkeys.show, &mut reserved, crate::show_main);
     if settings.switch_mode == SwitchMode::Hotkey {
         bind(app, &settings.hotkeys.next_profile, &mut reserved, |app| log(control::step(app, 1)));
@@ -128,7 +127,7 @@ mod tests {
     #[test]
     fn default_and_typed_hotkeys_parse_for_the_plugin() {
         let h = crate::profiles::Hotkeys::default();
-        for accel in [h.pause.as_str(), &h.next_profile, &h.prev_profile, &h.show, "Ctrl+Alt+Cmd+F13", "Meta+Shift+2"] {
+        for accel in [h.next_profile.as_str(), &h.prev_profile, &h.show, "Ctrl+Alt+Cmd+F13", "Meta+Shift+2"] {
             assert!(normalize(accel).parse::<Shortcut>().is_ok(), "{accel}");
             assert!(chord(accel).is_some(), "{accel}");
         }

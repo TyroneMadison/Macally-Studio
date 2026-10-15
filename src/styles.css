@@ -83,7 +83,6 @@ h1 { font-size: 18px; font-weight: 600; margin: 0 0 12px; }
 }
 .rail-btn:hover { background: var(--raised); color: var(--text); }
 .rail-btn.active { background: var(--raised); color: var(--primary); }
-.rail-btn.pause.on { color: var(--ok); }
 .rail-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* Keyboard view */

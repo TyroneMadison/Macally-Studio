@@ -66,8 +66,6 @@ export function actionLabel(a: Action, catalog: AppEntry[], profiles: Profile[])
       return [a.program, ...a.args].join(" ");
     case "switch_profile":
       return `Switch to ${profiles.find((p) => p.id === a.profile)?.name ?? a.profile}`;
-    case "pause_toggle":
-      return "Pause remapping";
     case "pass_through":
       return "Pass-through";
   }

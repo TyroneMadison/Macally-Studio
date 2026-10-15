@@ -24,7 +24,6 @@ const MODES: { id: SwitchMode; title: string; hint: string }[] = [
 ];
 
 const HOTKEYS: { key: keyof Hotkeys; label: string }[] = [
-  { key: "pause", label: "Pause / resume remapping" },
   { key: "nextProfile", label: "Next profile" },
   { key: "prevProfile", label: "Previous profile" },
   { key: "show", label: "Show Macally Studio" },

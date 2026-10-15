@@ -3,7 +3,6 @@ import { needsPermissions } from "./PermissionGate";
 import type { Status } from "../lib/types";
 
 const status = (platform: Status["platform"], permissionsOk: boolean): Status => ({
-  paused: false,
   activeProfile: "macos-default",
   hookRunning: permissionsOk,
   deviceFound: true,

@@ -1,6 +1,6 @@
 //! App-wide operations shared by the tray, hotkeys, key actions and the foreground watcher.
-//! Profile and pause changes go through the same commands the UI calls, so every trigger
-//! saves, updates the engine and emits "profile-changed" / "paused-changed" the same way.
+//! Profile changes go through the same command the UI calls, so every trigger saves, updates
+//! the engine and emits "profile-changed" the same way.
 
 use tauri::{AppHandle, Manager};
 
@@ -9,13 +9,6 @@ use crate::commands::{self, AppState};
 pub fn activate(app: &AppHandle, id: &str) -> anyhow::Result<()> {
     let state = app.try_state::<AppState>().ok_or_else(|| anyhow::anyhow!("app state not ready"))?;
     commands::set_active_profile(app.clone(), state, id.to_string()).map_err(anyhow::Error::msg)
-}
-
-pub fn toggle_pause(app: &AppHandle) -> anyhow::Result<()> {
-    let state = app.try_state::<AppState>().ok_or_else(|| anyhow::anyhow!("app state not ready"))?;
-    let paused = !state.engine.is_paused();
-    commands::set_paused(app.clone(), state, paused);
-    Ok(())
 }
 
 /// The id `step` places after `current` in `ids`, wrapping (step -1 = previous).

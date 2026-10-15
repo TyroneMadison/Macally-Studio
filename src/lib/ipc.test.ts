@@ -15,8 +15,7 @@ describe("ipc", () => {
     expect(invoke).toHaveBeenCalledWith("export_profile", { id: "photo", path: "C:/out.json" });
     await ipc.resetProfile("windows-default");
     expect(invoke).toHaveBeenCalledWith("reset_profile", { id: "windows-default" });
-    await ipc.setPaused(true);
-    expect(invoke).toHaveBeenCalledWith("set_paused", { paused: true });
+    expect("setPaused" in ipc || "onPausedChanged" in ipc).toBe(false); // pausing is gone
     await ipc.getStatus();
     expect(invoke).toHaveBeenCalledWith("get_status");
   });

@@ -190,8 +190,6 @@ export function describeAction(
         title: profiles.find((p) => p.id === a.profile)?.name ?? a.profile,
         detail: "Switches the active profile",
       };
-    case "pause_toggle":
-      return { type: "Pause", title: "Pause / resume remapping", detail: "" };
     case "pass_through":
       return { type: "Pass-through", title: "Sends its own key", detail: "" };
   }

@@ -36,7 +36,7 @@ Remap keys, launch apps and Steam games, and switch profiles automatically, on W
   </tr>
   <tr>
     <td valign="top"><b>Key Monitor and Record</b><br>See exactly what the system reports for any key, and capture a chord by pressing it.</td>
-    <td valign="top"><b>Tray and menu bar</b><br>Switch profiles, pause remapping and check for updates from the tray. Starts at login and closes to the tray.</td>
+    <td valign="top"><b>Tray and menu bar</b><br>Switch profiles and check for updates from the tray. Starts at login and closes to the tray.</td>
     <td valign="top"><b>Updates itself</b><br>Checks GitHub Releases on launch and installs a new version with one click.</td>
   </tr>
 </table>

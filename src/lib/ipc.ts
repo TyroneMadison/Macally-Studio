@@ -16,7 +16,6 @@ export const exportProfile = (id: string, path: string) => invoke<void>("export_
 export const setActiveProfile = (id: string) => invoke<void>("set_active_profile", { id });
 export const getSettings = () => invoke<Settings>("get_settings");
 export const saveSettings = (settings: Settings) => invoke<void>("save_settings", { settings });
-export const setPaused = (paused: boolean) => invoke<void>("set_paused", { paused });
 export const getCatalog = () => invoke<AppEntry[]>("get_catalog");
 export const refreshCatalog = () => invoke<AppEntry[]>("refresh_catalog");
 export const addCatalogEntry = (path: string) => invoke<AppEntry[]>("add_catalog_entry", { path });
@@ -34,7 +33,6 @@ const on =
 
 export const onKeyEvent = on<KeyEvent>("key-event");
 export const onProfileChanged = on<{ id: string }>("profile-changed");
-export const onPausedChanged = on<{ paused: boolean }>("paused-changed");
 export const onCatalogProgress = on<CatalogProgress>("catalog-progress");
 export const onUpdateAvailable = on<UpdateInfo>("update-available");
 export const onForegroundChanged = on<{ name: string }>("foreground-changed");
