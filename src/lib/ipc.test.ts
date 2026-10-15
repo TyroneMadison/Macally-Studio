@@ -21,25 +21,14 @@ describe("ipc", () => {
     expect(invoke).toHaveBeenCalledWith("get_status");
   });
 
-  it("ends a Record in Monitor mode only while Monitor is wanted", async () => {
-    const modes = () =>
-      vi.mocked(invoke).mock.calls.map((c) => (c[0] === "set_monitor" ? `monitor:${(c[1] as { on: boolean }).on}` : c[0]));
+  it("turns the Key Monitor on and off, and has no key recording", async () => {
     await ipc.setMonitor(true);
-    await ipc.startRecord();
-    await ipc.setMonitor(true); // focus regained mid-Record: must not cancel the Record
-    await ipc.stopRecord();
     await ipc.setMonitor(false);
-    await ipc.startRecord();
-    await ipc.stopRecord();
-    expect(modes()).toEqual([
-      "monitor:true",
-      "start_record",
-      "stop_record",
-      "monitor:true",
-      "monitor:false",
-      "start_record",
-      "stop_record",
+    expect(vi.mocked(invoke).mock.calls).toEqual([
+      ["set_monitor", { on: true }],
+      ["set_monitor", { on: false }],
     ]);
+    expect("startRecord" in ipc || "stopRecord" in ipc).toBe(false);
   });
 
   it("hands listeners the event payload", async () => {

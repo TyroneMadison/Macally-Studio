@@ -296,17 +296,6 @@ pub fn get_status(app: AppHandle, state: State<'_, AppState>) -> Status {
 
 type EngineState<'a> = State<'a, Arc<crate::engine::Engine>>;
 
-/// Every key goes to the UI as "key-event" and is swallowed until stop_record (or 15 s pass).
-#[tauri::command]
-pub fn start_record(engine: EngineState<'_>) {
-    engine.set_mode(crate::engine::Mode::Record);
-}
-
-#[tauri::command]
-pub fn stop_record(engine: EngineState<'_>) {
-    engine.set_mode(crate::engine::Mode::Normal);
-}
-
 /// Key Monitor: every key goes to the UI as "key-event"; remapping keeps working.
 /// Never while the window is hidden (close-to-tray, login start): keys typed in other apps stay out of the UI.
 #[tauri::command]

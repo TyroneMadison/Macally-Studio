@@ -4,7 +4,6 @@ import Inspector from "../components/Inspector";
 import Keyboard3D from "../components/Keyboard3D";
 import { setMonitor } from "../lib/ipc";
 import { BACKLIGHT_LEVELS, loadLighting, saveLighting } from "../lib/lighting";
-import { useRecord } from "../lib/record";
 import type { AppState } from "../lib/state";
 import { askView, DEFAULT_VIEW, flipYaw, PITCH_MAX, PITCH_MIN, viewFromCamera, ZOOM_MAX, type View3D, type ViewState } from "../lib/view";
 
@@ -35,7 +34,6 @@ function Slider({ label, min, max, unit, value, onChange }: SliderProps) {
 
 export default function Keyboard({ store }: { store: AppState }) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [picking, setPicking] = useState(false);
   const [{ asked, shown: view }, setViews] = useState<ViewState>({ asked: DEFAULT_VIEW, shown: DEFAULT_VIEW });
   const onViewChange = useCallback((v: View3D) => setViews((s) => viewFromCamera(s, v)), []);
   const setPart = (p: Partial<View3D>) => setViews((s) => askView(s, p));
@@ -60,17 +58,6 @@ export default function Keyboard({ store }: { store: AppState }) {
     };
   }, []);
 
-  // Pick key by pressing: Record mode, so the press selects the key instead of running its binding
-  useRecord(
-    picking,
-    () => (e) => {
-      const hit = e.down && store.layout.keys.some((k) => k.code === e.code);
-      if (hit) setSelected(e.code);
-      return hit;
-    },
-    () => setPicking(false),
-  );
-
   return (
     <div className="kb">
       <header className="kb-head">
@@ -79,14 +66,6 @@ export default function Keyboard({ store }: { store: AppState }) {
         {/* Fn-Lock: without it the top row sends the keyboard's own macros, not F1-F15 */}
         <span className="muted small">Tip: press fn + esc so the top row sends F1-F15</span>
         <div className="kb-spacer" />
-        <button
-          type="button"
-          className={"btn" + (picking ? " rec" : "")}
-          aria-pressed={picking}
-          onClick={() => setPicking((p) => !p)}
-        >
-          {picking ? "Press any key…" : "Pick key by pressing"}
-        </button>
         <div className="seg" role="group" aria-label="Legends">
           <button type="button" aria-pressed={legends === "mac"} onClick={() => setLegends("mac")}>
             Mac legends

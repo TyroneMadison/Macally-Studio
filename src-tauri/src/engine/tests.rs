@@ -195,39 +195,6 @@ fn debounce_window_restarts_on_every_down() {
 }
 
 #[test]
-fn record_swallows_and_reports_chords_until_stopped() {
-    let (e, fake, rx) = engine(&profile(&[("KeyA", &[], combo(&["KeyB"]))]));
-    e.set_mode(Mode::Record);
-    assert!(e.handle_key("ControlLeft", 0, true, "sc 0x1D"));
-    assert!(e.handle_key("KeyA", 0, true, "sc 0x1E"));
-    assert!(e.handle_key("KeyA", 0, false, "sc 0x1E"));
-    assert!(e.handle_key("ControlLeft", 0, false, "sc 0x1D"));
-    assert!(sent(&fake).is_empty());
-    let events: Vec<KeyEvent> = rx
-        .try_iter()
-        .map(|m| match m {
-            EngineMsg::Key(k) => k,
-            other => panic!("unexpected {other:?}"),
-        })
-        .collect();
-    assert_eq!(events.len(), 4);
-    assert_eq!(events[1], KeyEvent { code: "KeyA".into(), mods: keys(&["Ctrl"]), down: true, raw: "sc 0x1E".into() });
-    assert_eq!(e.mode(), Mode::Record);
-    e.set_mode(Mode::Normal);
-    assert!(e.handle_key("KeyA", 0, true, ""));
-    assert_eq!(sent(&fake), vec![(keys(&["KeyB"]), true)]);
-}
-
-#[test]
-fn record_ends_by_itself_after_the_timeout() {
-    let (e, _fake, _rx) = engine(&profile(&[]));
-    e.set_mode(Mode::Record);
-    let later = Instant::now() + RECORD_TIMEOUT;
-    assert!(!e.handle_at("KeyQ", 0, true, "", later));
-    assert_eq!(e.mode(), Mode::Normal);
-}
-
-#[test]
 fn monitor_reports_and_keeps_remapping() {
     let (e, fake, rx) = engine(&profile(&[("F3", &[], combo(&["KeyA"]))]));
     e.set_mode(Mode::Monitor);

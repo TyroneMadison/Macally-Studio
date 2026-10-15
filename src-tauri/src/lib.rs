@@ -68,8 +68,6 @@ pub fn run() {
             commands::save_settings,
             commands::set_paused,
             commands::get_status,
-            commands::start_record,
-            commands::stop_record,
             commands::set_monitor,
             commands::get_catalog,
             commands::refresh_catalog,

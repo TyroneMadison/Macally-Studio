@@ -209,8 +209,6 @@ a:hover { color: #7faaff; }
 .field { display: flex; flex-direction: column; gap: 8px; }
 .field .link { align-self: flex-start; }
 .rule { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--raised); }
-.hotkey-field { display: flex; gap: 8px; }
-.hotkey-field .btn { height: 38px; }
 .binding-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .binding { display: flex; align-items: center; gap: 8px; min-width: 0; height: 34px; padding: 0 10px; border-radius: 8px; background: var(--raised); border: 1px solid var(--border); font-size: 12px; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); }
@@ -272,10 +270,6 @@ a:hover { color: #7faaff; }
 .gate-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 12px; background: var(--raised); border: 1px solid var(--border); }
 
 /* Chord field (action picker) and the Inspector's Remap to row */
-.chord { display: flex; gap: 8px; }
-.chord > .input { flex: 1; min-width: 0; }
-.chord .btn { height: 38px; }
-.btn.rec { border-color: #ff6b6b; color: #ff6b6b; }
 
 /* Action picker */
 .ap-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(8, 8, 10, 0.6); }

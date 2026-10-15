@@ -194,8 +194,7 @@ function PickerDialog({ keyCode, initial, catalog, profiles, onPick, onClose }: 
                 <label className="kb-label" htmlFor="ap-chord">Send keys</label>
                 <ChordField id="ap-chord" initial={keys} onChange={setKeys} />
                 <p className="muted">
-                  Join key names with + (Ctrl, Alt, Shift, {isMac ? "Cmd" : "Win"}, A–Z, 0–9, F1–F15, Tab, Esc…) or
-                  click Record and press the keys.
+                  Join key names with + (Ctrl, Alt, Shift, {isMac ? "Cmd" : "Win"}, A–Z, 0–9, F1–F15, Tab, Esc…).
                 </p>
               </section>
             )}

@@ -123,7 +123,7 @@ pub fn on_window_event(window: &Window, event: &WindowEvent) {
         if window.label() == "main" && to_tray {
             api.prevent_close();
             let _ = window.hide();
-            // Monitor/Record end with the window; the Keyboard view turns Monitor back on when it regains focus
+            // Monitor ends with the window; the Keyboard view turns it back on when it regains focus
             if let Some(engine) = window.app_handle().try_state::<std::sync::Arc<crate::engine::Engine>>() {
                 engine.set_mode(crate::engine::Mode::Normal);
             }

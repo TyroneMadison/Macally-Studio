@@ -126,7 +126,7 @@ mod tests {
     }
 
     #[test]
-    fn default_and_recorded_hotkeys_parse_for_the_plugin() {
+    fn default_and_typed_hotkeys_parse_for_the_plugin() {
         let h = crate::profiles::Hotkeys::default();
         for accel in [h.pause.as_str(), &h.next_profile, &h.prev_profile, &h.show, "Ctrl+Alt+Cmd+F13", "Meta+Shift+2"] {
             assert!(normalize(accel).parse::<Shortcut>().is_ok(), "{accel}");

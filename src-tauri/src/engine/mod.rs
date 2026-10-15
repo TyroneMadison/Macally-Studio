@@ -37,9 +37,6 @@ pub const META: ModMask = 8;
 /// Launches and other side effects fire at most once per key inside this window; every
 /// key-down restarts it, so a held key with auto-repeat fires once.
 pub const DEBOUNCE: Duration = Duration::from_millis(400);
-/// Record mode ends by itself after this long, so a UI that never calls stop_record
-/// cannot leave the whole keyboard swallowed.
-pub const RECORD_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// Set by the platform `install` once the OS hook is live; read by `get_status`.
 pub static HOOK_RUNNING: AtomicBool = AtomicBool::new(false);
@@ -142,7 +139,7 @@ impl Table {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
     Normal,
-    Record,
+    /// Key Monitor: every key also goes to the UI as "key-event"; remapping keeps working.
     Monitor,
 }
 
@@ -182,9 +179,6 @@ struct Live {
     /// Keys whose down we acted on, with their lift: auto-repeat and key-up reuse both.
     held: HashMap<String, (Action, ModMask)>,
     last_fire: HashMap<String, Instant>,
-    /// Record swallows modifiers, so the OS never sees them held; Record tracks them itself.
-    record_mods: ModMask,
-    record_since: Option<Instant>,
     /// App hotkey chords; they always pass through so the hotkey still fires (spec section 11).
     reserved: HashSet<(String, ModMask)>,
 }
@@ -236,16 +230,12 @@ impl Engine {
     }
 
     pub fn set_mode(&self, m: Mode) {
-        let mut live = self.live.lock().unwrap();
-        live.record_mods = 0;
-        live.record_since = (m == Mode::Record).then(Instant::now);
         self.mode.store(m as u8, Ordering::SeqCst);
     }
 
     pub fn mode(&self) -> Mode {
         match self.mode.load(Ordering::SeqCst) {
-            1 => Mode::Record,
-            2 => Mode::Monitor,
+            1 => Mode::Monitor,
             _ => Mode::Normal,
         }
     }
@@ -263,20 +253,8 @@ impl Engine {
         let bit = mod_bit(code);
         let mods = mods & !bit; // a modifier never counts as "held with" itself
         let mut live = self.live.lock().unwrap();
-        let mut mode = self.mode();
-        if mode == Mode::Record && live.record_since.is_some_and(|t| now.duration_since(t) >= RECORD_TIMEOUT) {
-            live.record_since = None;
-            self.mode.store(Mode::Normal as u8, Ordering::SeqCst);
-            mode = Mode::Normal;
-        }
-        match mode {
-            Mode::Record => {
-                let before = live.record_mods;
-                live.record_mods = if down { before | bit } else { before & !bit };
-                self.emit(code, (mods | before) & !bit, down, raw);
-            }
-            Mode::Monitor => self.emit(code, mods, down, raw),
-            Mode::Normal => {}
+        if self.mode() == Mode::Monitor {
+            self.emit(code, mods, down, raw);
         }
         if !down {
             // release exactly what the matching key-down did, whatever changed since
@@ -285,10 +263,7 @@ impl Engine {
             if let Some((Action::KeyCombo { keys }, lift)) = &released {
                 self.platform.send_combo(keys, false, *lift);
             }
-            return released.is_some() || mode == Mode::Record;
-        }
-        if mode == Mode::Record {
-            return true;
+            return released.is_some();
         }
         let (action, lift) = match live.held.get(code) {
             Some(h) => h.clone(), // auto-repeat of a key we already own

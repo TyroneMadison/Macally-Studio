@@ -3,8 +3,7 @@ import ActionPicker from "./ActionPicker";
 import KeyMonitor from "./KeyMonitor";
 import Keycap from "./Keycap";
 import KeyPicker from "./KeyPicker";
-import { chordRecorder, describeAction, formatChord, isMac } from "../lib/actions";
-import { useRecord } from "../lib/record";
+import { describeAction, formatChord, isMac } from "../lib/actions";
 import type { AppState } from "../lib/state";
 import type { AppEntry, Binding, KeyEvent, Layout, Modifier, Profile } from "../lib/types";
 
@@ -32,11 +31,11 @@ export default function Inspector(props: InspectorProps) {
   return (
     <aside className="kb-panel insp" aria-label="Key inspector">
       {keyCode ? (
-        // keyed: switching key or profile ends a recording and drops the "Saved" note
+        // keyed: switching key or profile drops the "Saved" note
         <KeyEditor key={`${profile.id}/${keyCode}`} {...props} keyCode={keyCode} />
       ) : (
         <>
-          <p className="muted">Click a key on the keyboard, or press 'Pick key by pressing' and press it.</p>
+          <p className="muted">Click a key on the keyboard to change it.</p>
           <div className="insp-spacer" />
         </>
       )}
@@ -49,7 +48,6 @@ export default function Inspector(props: InspectorProps) {
 function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles }: InspectorProps & { keyCode: string }) {
   const binding: Binding | undefined = profile.bindings[keyCode];
   const mods = binding?.mods ?? [];
-  const [recording, setRecording] = useState(false);
   const [picking, setPicking] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +57,6 @@ function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles }:
 
   /** Built from the latest saved binding, not this render's, so quick edits cannot undo each other. */
   function commit(update: (old?: Binding) => Binding | null) {
-    setRecording(false); // any other edit ends a recording, so it can never save over that edit
     setError(null);
     saveBinding(profile.id, keyCode, update).then(
       () => setSavedAt(Date.now()),
@@ -68,11 +65,6 @@ function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles }:
   }
   const send = (keys: string[]) => commit((old) => ({ mods: old?.mods ?? [], action: { type: "key_combo", keys } }));
 
-  useRecord(
-    recording,
-    () => chordRecorder((keys) => keys.join() !== "Escape" && send(keys)), // a bare Esc cancels
-    () => setRecording(false),
-  );
   useEffect(() => {
     if (!savedAt) return;
     const t = setTimeout(() => setSavedAt(0), 1500);
@@ -104,28 +96,14 @@ function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles }:
 
       <div className="insp-field">
         <div className="kb-label">Remap to</div>
-        <div className="chord">
-          <button
-            type="button"
-            className={recording ? "btn rec" : "btn primary"}
-            aria-pressed={recording}
-            onClick={() => setRecording((r) => !r)}
-          >
-            {recording ? "Press any key…" : "Press a key"}
-          </button>
-          <KeyPicker
-            value={sends}
-            onPick={send}
-            action={binding?.action}
-            catalog={catalog}
-            onLaunch={(a) => commit((old) => ({ mods: old?.mods ?? [], action: a }))}
-          />
-        </div>
-        <p className="muted">
-          {recording
-            ? "Press the key or shortcut it should send. Esc cancels."
-            : "Press the key or shortcut it should send, or pick from the list: any key, Windows shortcuts like Win + V, or a program to launch."}
-        </p>
+        <KeyPicker
+          value={sends}
+          onPick={send}
+          action={binding?.action}
+          catalog={catalog}
+          onLaunch={(a) => commit((old) => ({ mods: old?.mods ?? [], action: a }))}
+        />
+        <p className="muted">Choose what it sends: a key, a Windows shortcut like Win + V, or a program to launch.</p>
       </div>
 
       <div className="insp-field">
@@ -152,10 +130,7 @@ function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles }:
         <button
           type="button"
           className="btn"
-          onClick={() => {
-            setRecording(false);
-            setPicking(true);
-          }}
+          onClick={() => setPicking(true)}
         >
           More actions…
         </button>

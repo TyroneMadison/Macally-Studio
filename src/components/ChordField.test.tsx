@@ -3,14 +3,15 @@ import { describe, expect, it } from "vitest";
 import ChordField from "./ChordField";
 
 describe("ChordField", () => {
-  it("shows the chord in friendly form with a Record button", () => {
+  it("shows the chord in friendly form, typed rather than recorded", () => {
     const html = renderToStaticMarkup(<ChordField id="c" initial={["Meta", "KeyS"]} onChange={() => {}} />);
     expect(html).toContain('value="Win + S"');
-    expect(html).toContain(">Record</button>");
+    expect(html).not.toContain("Record");
+    expect(html).not.toContain("<button");
   });
 
-  it("locks both controls when disabled", () => {
+  it("locks the field when disabled", () => {
     const html = renderToStaticMarkup(<ChordField id="c" initial={[]} disabled onChange={() => {}} />);
-    expect(html.match(/disabled=""/g)).toHaveLength(2);
+    expect(html.match(/disabled=""/g)).toHaveLength(1);
   });
 });

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  chordRecorder,
   describeAction,
   entryGroup,
   entryToAction,
@@ -12,13 +11,11 @@ import {
   launchOf,
   modAlias,
   parseChord,
-  recordStep,
   splitArgs,
 } from "./actions";
 import { KEY_CODES } from "./keycodes";
-import type { AppEntry, KeyEvent } from "./types";
+import type { AppEntry } from "./types";
 
-const ev = (code: string, down = true, mods: string[] = []): KeyEvent => ({ code, down, mods, raw: "" });
 const entry = (id: string, kind: AppEntry["kind"], launch: string, name = "App"): AppEntry => ({
   id,
   name,
@@ -54,35 +51,6 @@ describe("chords", () => {
     expect(formatChord(["Meta", "Alt", "Escape"], true)).toBe("Cmd + Option + Esc");
     expect(parseChord(formatChord(["Shift", "Digit1", "F5"], false))).toEqual(["Shift", "Digit1", "F5"]);
     expect(parseChord(formatChord(["Ctrl", "Alt", "Delete"], true))).toEqual(["Ctrl", "Alt", "Delete"]);
-  });
-});
-
-describe("recordStep", () => {
-  it("collects modifiers until a normal key goes down", () => {
-    let s = recordStep([], ev("ControlLeft"));
-    s = recordStep(s.held, ev("ShiftLeft"));
-    expect(s.done).toBeNull();
-    s = recordStep(s.held, ev("KeyS"));
-    expect(s.done).toEqual(["Ctrl", "Shift", "KeyS"]);
-    expect(recordStep(["Shift", "Meta"], ev("KeyS")).done).toEqual(["Meta", "Shift", "KeyS"]); // Win + Shift + S
-  });
-
-  it("uses mods reported on the event and finishes on a lone modifier release", () => {
-    expect(recordStep([], ev("Tab", true, ["Meta"])).done).toEqual(["Meta", "Tab"]);
-    expect(recordStep([], ev("Tab", true, ["ctrl"])).done).toEqual(["Ctrl", "Tab"]);
-    const s = recordStep([], ev("MetaLeft"));
-    expect(recordStep(s.held, ev("MetaLeft", false)).done).toEqual(["Meta"]);
-    expect(recordStep([], ev("KeyA", false)).done).toBeNull();
-  });
-});
-
-describe("chordRecorder", () => {
-  it("keeps modifiers across events and finishes once", () => {
-    const got: string[][] = [];
-    const onKey = chordRecorder((k) => got.push(k));
-    expect(onKey(ev("ControlLeft"))).toBe(false);
-    expect(onKey(ev("KeyZ"))).toBe(true);
-    expect(got).toEqual([["Ctrl", "KeyZ"]]);
   });
 });
 

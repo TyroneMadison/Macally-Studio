@@ -48,9 +48,10 @@ const render = (keyCode: string | null, profile: Profile = mine) =>
   );
 
 describe("Inspector", () => {
-  it("explains both ways to pick a key and still shows the monitor", () => {
+  it("asks for a click on a key and still shows the monitor", () => {
     const html = render(null);
-    expect(html).toContain("Click a key on the keyboard, or press &#x27;Pick key by pressing&#x27; and press it.");
+    expect(html).toContain("Click a key on the keyboard to change it.");
+    expect(html).not.toContain("Pick key by pressing");
     expect(html).toContain("Press any key to see what the OS reports");
   });
 
@@ -63,11 +64,13 @@ describe("Inspector", () => {
     expect(html).toContain('<button type="button" class="btn">Reset key</button>');
   });
 
-  it("offers Press a key and the keycap list, showing what the key sends", () => {
+  it("remaps by clicking through the keycap list, never by pressing keys", () => {
     const html = render("F3", { ...mine, bindings: { F3: { mods: [], action: { type: "key_combo", keys: ["KeyQ"] } } } });
-    expect(html).toContain('<button type="button" class="btn primary" aria-pressed="false">Press a key</button>');
+    expect(html).not.toContain("Press a key");
+    expect(html).not.toContain("aria-pressed");
     expect(html).toContain('aria-label="Sends Q. Choose a key"');
     expect(html).toContain('data-code="KeyQ"');
+    expect(html).toContain("Choose what it sends: a key, a Windows shortcut like Win + V, or a program to launch.");
   });
 
   it("shows a Win chord as keycaps with the Windows logo", () => {

@@ -1,5 +1,5 @@
 import { KEY_CODES } from "./keycodes";
-import type { Action, AppEntry, KeyEvent, Profile } from "./types";
+import type { Action, AppEntry, Profile } from "./types";
 
 export const isMac = typeof navigator !== "undefined" && /Macintosh|Mac OS X/.test(navigator.userAgent);
 
@@ -33,8 +33,6 @@ export function modAlias(name: string): Mod | null {
   return MOD_ORDER.includes(alias as Mod) ? (alias as Mod) : null;
 }
 
-const orderMods = (mods: Mod[]) => MOD_ORDER.filter((m) => mods.includes(m));
-
 /** "ctrl + shift + s" -> ["Ctrl", "Shift", "KeyS"]. Letters/digits become codes, code names match case-insensitively. */
 export function parseChord(text: string): string[] {
   return text
@@ -61,32 +59,6 @@ export function formatChord(keys: string[], mac = isMac): string {
       return m ? label[m] : FRIENDLY[k] ?? k.replace(/^Key([A-Z])$/, "$1").replace(/^Digit(\d)$/, "$1");
     })
     .join(" + ");
-}
-
-/**
- * One Record-mode key event. Modifiers accumulate; the first other key-down finishes the chord,
- * and so does releasing a lone modifier (to bind just "Ctrl", say).
- */
-export function recordStep(held: Mod[], e: KeyEvent): { held: Mod[]; done: string[] | null } {
-  const mod = modAlias(e.code);
-  if (mod) {
-    if (e.down) return { held: held.includes(mod) ? held : [...held, mod], done: null };
-    return { held: [], done: held.length > 0 ? orderMods(held) : null };
-  }
-  if (!e.down) return { held, done: null };
-  const reported = e.mods.map(modAlias).filter((m): m is Mod => m !== null);
-  return { held: [], done: [...orderMods([...held, ...reported]), e.code] };
-}
-
-/** A useRecord handler: collects one chord with recordStep, hands it to `done` and reports it finished. */
-export function chordRecorder(done: (keys: string[]) => void): (e: KeyEvent) => boolean {
-  let held: Mod[] = [];
-  return (e) => {
-    const step = recordStep(held, e);
-    held = step.held;
-    if (step.done) done(step.done);
-    return step.done !== null;
-  };
 }
 
 const SYMBOLS: Record<string, string> = {
