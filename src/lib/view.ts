@@ -23,6 +23,21 @@ export function clampView(v: View3D): View3D {
   };
 }
 
+/** The view the UI last asked the camera for (sliders, Flip, Reset) and the view the camera shows.
+ * A right-drag or the wheel only changes `shown`: React renders a frame behind the controls, so a
+ * camera move fed back as a request would send the camera back to where it just was. */
+export type ViewState = { asked: View3D; shown: View3D };
+
+/** The camera moved by itself: show it, ask for nothing. */
+export const viewFromCamera = (s: ViewState, v: View3D): ViewState => ({ asked: s.asked, shown: clampView(v) });
+
+/** Ask the camera for the shown view with `part` changed; always a new object, so even asking
+ * for the same angles again (Reset view after a drag) moves the camera. */
+export function askView(s: ViewState, part: Partial<View3D>): ViewState {
+  const v = clampView({ ...s.shown, ...part });
+  return { asked: v, shown: v };
+}
+
 /** "Flip 180°": look at the board from the other side. */
 export const flipYaw = (yaw: number) => wrapAngle(yaw + Math.PI);
 

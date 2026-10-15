@@ -1,6 +1,19 @@
 import { PerspectiveCamera, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { cameraPos, clampView, DEFAULT_VIEW, fitDistance, flipYaw, FOV, PITCH_MAX, PITCH_MIN, wrapAngle } from "./view";
+import {
+  askView,
+  cameraPos,
+  clampView,
+  DEFAULT_VIEW,
+  fitDistance,
+  flipYaw,
+  FOV,
+  PITCH_MAX,
+  PITCH_MIN,
+  viewFromCamera,
+  wrapAngle,
+  type ViewState,
+} from "./view";
 
 const PI = Math.PI;
 
@@ -24,6 +37,22 @@ describe("3D view helpers", () => {
     expect(flipYaw(PI)).toBeCloseTo(0);
     expect(flipYaw(-0.2)).toBeCloseTo(PI - 0.2);
     expect(flipYaw(0.4)).toBeCloseTo(0.4 - PI);
+  });
+
+  it("never sends the camera's own moves back to the camera", () => {
+    const start: ViewState = { asked: DEFAULT_VIEW, shown: DEFAULT_VIEW };
+    // a right-drag: the camera reports where it is now; the view it was last asked for stays the same object
+    const dragged = viewFromCamera(start, { yaw: 0.5, pitch: 1.2, zoom: 1.4 });
+    expect(dragged.asked).toBe(start.asked);
+    expect(dragged.shown).toEqual({ yaw: 0.5, pitch: 1.2, zoom: 1.4 });
+    // a slider asks for a view built on what is shown, as a new object the camera moves to once
+    const slid = askView(dragged, { yaw: -0.3 });
+    expect(slid.asked).not.toBe(dragged.asked);
+    expect(slid.asked).toEqual({ yaw: -0.3, pitch: 1.2, zoom: 1.4 });
+    expect(slid.shown).toEqual(slid.asked);
+    // Reset view asks again even when the values equal the last request
+    expect(askView(start, DEFAULT_VIEW).asked).not.toBe(start.asked);
+    expect(askView(start, { zoom: 9 }).asked.zoom).toBe(2.5);
   });
 
   it("fits the whole plate on screen at 100% for every yaw and tilt", () => {

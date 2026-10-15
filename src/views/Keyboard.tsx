@@ -6,7 +6,7 @@ import { setMonitor } from "../lib/ipc";
 import { BACKLIGHT_LEVELS, loadLighting, saveLighting } from "../lib/lighting";
 import { useRecord } from "../lib/record";
 import type { AppState } from "../lib/state";
-import { clampView, DEFAULT_VIEW, flipYaw, PITCH_MAX, PITCH_MIN, ZOOM_MAX, type View3D } from "../lib/view";
+import { askView, DEFAULT_VIEW, flipYaw, PITCH_MAX, PITCH_MIN, viewFromCamera, ZOOM_MAX, type View3D, type ViewState } from "../lib/view";
 
 const DEG = 180 / Math.PI;
 
@@ -36,9 +36,9 @@ function Slider({ label, min, max, unit, value, onChange }: SliderProps) {
 export default function Keyboard({ store }: { store: AppState }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
-  const [view, setView] = useState<View3D>(DEFAULT_VIEW);
-  const onViewChange = useCallback((v: View3D) => setView(clampView(v)), []);
-  const setPart = (p: Partial<View3D>) => setView((v) => clampView({ ...v, ...p }));
+  const [{ asked, shown: view }, setViews] = useState<ViewState>({ asked: DEFAULT_VIEW, shown: DEFAULT_VIEW });
+  const onViewChange = useCallback((v: View3D) => setViews((s) => viewFromCamera(s, v)), []);
+  const setPart = (p: Partial<View3D>) => setViews((s) => askView(s, p));
   const [lighting, setLighting] = useState(loadLighting);
   useEffect(() => saveLighting(lighting), [lighting]);
   const profile = store.activeProfile;
@@ -105,9 +105,7 @@ export default function Keyboard({ store }: { store: AppState }) {
               selected={selected}
               onSelect={setSelected}
               legends={legends}
-              yaw={view.yaw}
-              pitch={view.pitch}
-              zoom={view.zoom}
+              view={asked}
               lighting={lighting}
               onViewChange={onViewChange}
             />
@@ -143,7 +141,7 @@ export default function Keyboard({ store }: { store: AppState }) {
               <button type="button" className="btn" onClick={() => setPart({ yaw: flipYaw(view.yaw) })}>
                 Flip 180°
               </button>
-              <button type="button" className="btn" onClick={() => setView(DEFAULT_VIEW)}>
+              <button type="button" className="btn" onClick={() => setPart(DEFAULT_VIEW)}>
                 Reset view
               </button>
               <details className="kb-pop">

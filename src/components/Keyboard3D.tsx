@@ -1,22 +1,11 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
+import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Environment, Lightformer, OrbitControls, RoundedBox, Text } from "@react-three/drei";
 import { BackSide, MeshBasicMaterial, MOUSE } from "three";
 import fontUrl from "../assets/fonts/JetBrainsMono-Variable.ttf";
 import type { Lighting } from "../lib/lighting";
 import type { Layout, LayoutKey } from "../lib/types";
-import {
-  cameraPos,
-  clampView,
-  fitDistance,
-  FOV,
-  PITCH_MAX,
-  PITCH_MIN,
-  wrapAngle,
-  ZOOM_MAX,
-  ZOOM_MIN,
-  type View3D,
-} from "../lib/view";
+import { cameraPos, clampView, fitDistance, FOV, PITCH_MAX, PITCH_MIN, ZOOM_MAX, ZOOM_MIN, type View3D } from "../lib/view";
 
 export type Keyboard3DProps = {
   layout: Layout;
@@ -24,10 +13,10 @@ export type Keyboard3DProps = {
   selected: string | null;
   onSelect: (code: string) => void;
   legends: "mac" | "win";
-  yaw: number; // radians, a full turn
-  pitch: number; // radians from straight down, PITCH_MIN..PITCH_MAX
-  zoom: number; // 1..1.5
+  /** The view the UI asks for (ViewState.asked): each new object moves the camera there once. */
+  view: View3D;
   lighting: Lighting;
+  /** Where the camera is after a right-drag or the wheel. */
   onViewChange: (v: View3D) => void;
 };
 
@@ -161,31 +150,41 @@ function Lights({ brightness: b }: { brightness: number }) {
   );
 }
 
-type RigProps = { yaw: number; pitch: number; zoom: number; radius: number; onViewChange: Keyboard3DProps["onViewChange"] };
+type RigProps = { view: View3D; radius: number; onViewChange: Keyboard3DProps["onViewChange"] };
 
-const near = (a: number, b: number) => Math.abs(a - b) < 1e-3;
-
-/** OrbitControls kept in two-way sync with the view props. Lives inside <Canvas>. */
-function Rig({ yaw, pitch, zoom, radius, onViewChange }: RigProps) {
+/** OrbitControls driven one way at a time: a view the UI asks for moves the camera, and camera moves
+ * are only reported. Lives inside <Canvas>. */
+function Rig({ view, radius, onViewChange }: RigProps) {
   const aspect = useThree((s) => (s.size.width > 0 && s.size.height > 0 ? s.size.width / s.size.height : 1));
   const fit = fitDistance(radius, aspect);
   const ref = useRef<Controls>(null);
   const applying = useRef(false);
+  const fitNow = useRef(fit);
 
-  // props -> camera (sliders, Flip, Reset)
+  // A view asked for by the UI (sliders, Flip, Reset), once per request object. Never an echo of the
+  // camera's own moves: those reach React a frame late, and moving the camera there made drags jitter.
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
-    const v = clampView({ yaw, pitch, zoom });
-    const dist = fit / v.zoom;
-    if (near(wrapAngle(c.getAzimuthalAngle() - v.yaw), 0) && near(c.getPolarAngle(), v.pitch) && near(c.getDistance(), dist)) return;
+    const v = clampView(view);
     applying.current = true;
     c.setAzimuthalAngle(v.yaw); // three-stdlib OrbitControls (drei) has these setters; vanilla three's does not
     c.setPolarAngle(v.pitch);
-    c.object.position.sub(c.target).setLength(dist).add(c.target); // three-stdlib has no setDistance
+    c.object.position.sub(c.target).setLength(fitNow.current / v.zoom).add(c.target); // three-stdlib has no setDistance
     c.update();
     applying.current = false;
-  }, [yaw, pitch, zoom, fit]);
+  }, [view]);
+
+  // the canvas changed shape: keep the zoom at the new fit distance
+  useEffect(() => {
+    const c = ref.current;
+    if (!c || fit === fitNow.current) return;
+    applying.current = true;
+    c.object.position.sub(c.target).multiplyScalar(fit / fitNow.current).add(c.target);
+    c.update();
+    applying.current = false;
+    fitNow.current = fit;
+  }, [fit]);
 
   // camera -> props (right-drag, wheel, middle-drag)
   const onChange = useCallback(() => {
@@ -213,22 +212,12 @@ function Rig({ yaw, pitch, zoom, radius, onViewChange }: RigProps) {
   );
 }
 
-export default function Keyboard3D({
-  layout,
-  boundCodes,
-  selected,
-  onSelect,
-  legends,
-  yaw,
-  pitch,
-  zoom,
-  lighting,
-  onViewChange,
-}: Keyboard3DProps) {
+/** Memoized: a camera move re-renders the readouts around it, never the 107 keys. */
+export default memo(function Keyboard3D({ layout, boundCodes, selected, onSelect, legends, view, lighting, onViewChange }: Keyboard3DProps) {
   const { width, depth, radius } = useMemo(() => measure(layout.keys), [layout]);
   const square = fitDistance(radius, 1);
-  // initial camera only; Rig fits it to the canvas aspect and keeps it in sync afterwards
-  const [initial] = useState(() => cameraPos(clampView({ yaw, pitch, zoom }), square));
+  // initial camera only; Rig fits it to the canvas aspect and moves it afterwards
+  const [initial] = useState(() => cameraPos(clampView(view), square));
 
   return (
     <Canvas
@@ -254,7 +243,7 @@ export default function Keyboard3D({
           onSelect={onSelect}
         />
       ))}
-      <Rig yaw={yaw} pitch={pitch} zoom={zoom} radius={radius} onViewChange={onViewChange} />
+      <Rig view={view} radius={radius} onViewChange={onViewChange} />
     </Canvas>
   );
-}
+});
