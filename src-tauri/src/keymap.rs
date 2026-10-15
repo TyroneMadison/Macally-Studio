@@ -168,6 +168,16 @@ pub fn code_from_mac_media(key_type: u8) -> Option<&'static str> {
     KEYS.iter().find(|d| d.mac_media == Some(key_type)).map(|d| d.code)
 }
 
+/// Keys the keyboard's own firmware handles and never reports to the OS, so no app can see them
+/// or use them as a remap source. On the Macally this is the Fn key (confirmed by a HID probe:
+/// the keyboard exposes only standard keyboard, consumer and system-control collections, no vendor
+/// collection, and Fn appears on none of them).
+pub const FIRMWARE_ONLY: &[&str] = &["Fn"];
+
+pub fn is_firmware_only(code: &str) -> bool {
+    FIRMWARE_ONLY.contains(&code)
+}
+
 /// Looks a key up by code; modifier aliases ("Ctrl", "Win", ...) are accepted.
 pub fn def(code: &str) -> Option<&'static KeyDef> {
     let code = resolve_alias(code);
@@ -188,6 +198,19 @@ pub fn resolve_alias(name: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fn_is_the_only_firmware_only_key() {
+        assert!(is_firmware_only("Fn"));
+        assert!(!is_firmware_only("KeyA"));
+        assert!(!is_firmware_only("ControlLeft"));
+        assert!(!is_firmware_only("F5")); // the backlight keys still send F5/F6 with Fn-Lock on
+        // every firmware-only key is a real key in the map, and none can be injected
+        for code in FIRMWARE_ONLY {
+            let d = def(code).unwrap();
+            assert_eq!((d.win_scan, d.win_vk), (0, 0), "{code} is injectable");
+        }
+    }
 
     #[test]
     fn codes_are_unique() {

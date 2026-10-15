@@ -36,6 +36,10 @@ impl AppState {
     /// Installs built-ins, loads everything and hands the active profile to the engine.
     pub fn load(store: Store, engine: Arc<dyn EngineLike>) -> anyhow::Result<AppState> {
         store.ensure_builtins()?;
+        // clear Fn (firmware-only) bindings saved before the UI stopped offering them
+        if let Err(e) = store.strip_firmware_only() {
+            eprintln!("strip firmware-only bindings: {e:#}");
+        }
         let profiles = store.list_profiles()?;
         let mut settings = store.load_settings();
         if !profiles.iter().any(|p| p.id == settings.active_profile) {
@@ -165,6 +169,24 @@ impl AppState {
         };
         let p = self.store.lock().unwrap().set_game_auto_switch(id, on)?;
         self.written(&p)
+    }
+
+    /// Removes `code`'s binding from every profile (built-ins and games), saves, and hands the
+    /// active profile to the engine again so no stale table or half-saved state survives. Returns
+    /// how many profiles changed. Used by "Reset Fn key" to undo any failed Fn remap.
+    pub fn reset_key_everywhere(&self, code: &str) -> anyhow::Result<usize> {
+        let mut changed = 0;
+        // bound first: a guard in the `for` expression would live through the loop and deadlock
+        let profiles = self.store.lock().unwrap().list_profiles()?;
+        for mut p in profiles {
+            if p.bindings.remove(code).is_some() {
+                self.store.lock().unwrap().save_profile(&p)?;
+                changed += 1;
+            }
+        }
+        self.reload()?;
+        self.activate(&self.active_id())?; // rebuild the engine table from disk
+        Ok(changed)
     }
 
     /// Deletes a game's profile. Returns the id that became active when it was the active one.
@@ -401,6 +423,15 @@ pub fn set_game_auto_switch(state: State<'_, AppState>, id: Option<String>, on: 
     Ok(())
 }
 
+/// Clears `code`'s binding from every profile and rebuilds the engine. "Reset Fn key" calls this
+/// with "Fn" to undo a remap that could never work. Returns how many profiles changed.
+#[tauri::command]
+pub fn reset_key_everywhere(app: AppHandle, state: State<'_, AppState>, code: String) -> CmdResult<usize> {
+    let n = state.reset_key_everywhere(&code).map_err(err)?;
+    crate::control::resync(&app);
+    Ok(n)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -501,6 +532,27 @@ mod tests {
 
     fn portal() -> Game {
         Game { name: "Portal 2".into(), exe: "portal2.exe".into(), folder: None, path: None, icon: None, auto_switch: true }
+    }
+
+    #[test]
+    fn reset_key_everywhere_clears_it_from_all_profiles_and_rebuilds_the_engine() {
+        let (state, spy) = setup("cmd-reset-key");
+        let fn_ctrl = Binding { mods: vec![], action: crate::actions::Action::KeyCombo { keys: vec!["ControlLeft".into()] } };
+        // Fn bound in the default and in a game, as a failed remap would have left it
+        let mut def = state.profile(default_profile_id()).unwrap();
+        def.bindings.insert("Fn".into(), fn_ctrl.clone());
+        state.save(def).unwrap();
+        let g = state.add_game(portal(), None).unwrap();
+        state.save(Profile { bindings: BTreeMap::from([("Fn".to_string(), fn_ctrl)]), ..g }).unwrap();
+        state.activate("portal-2").unwrap();
+        spy.last.lock().unwrap().clear();
+
+        assert_eq!(state.reset_key_everywhere("Fn").unwrap(), 2, "removed from the default and the game");
+        assert!(!state.profile(default_profile_id()).unwrap().bindings.contains_key("Fn"));
+        assert!(!state.profile("portal-2").unwrap().bindings.contains_key("Fn"));
+        // the engine was handed the active profile again (stale state cleared)
+        assert_eq!(*spy.last.lock().unwrap(), "portal-2");
+        assert_eq!(state.reset_key_everywhere("Fn").unwrap(), 0);
     }
 
     #[test]

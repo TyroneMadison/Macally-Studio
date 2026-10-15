@@ -76,6 +76,7 @@ pub fn run() {
             commands::add_game,
             commands::remove_game,
             commands::set_game_auto_switch,
+            commands::reset_key_everywhere,
             updater::check_update,
             updater::install_update,
         ])

@@ -320,6 +320,22 @@ impl Store {
         Ok(())
     }
 
+    /// Removes bindings on firmware-only keys (Fn) from every profile. Such a key never reaches the
+    /// OS, so a binding on it does nothing; this clears ones saved before the UI stopped offering
+    /// them. Returns how many profiles changed, and is idempotent. Run once on load.
+    pub fn strip_firmware_only(&self) -> anyhow::Result<usize> {
+        let mut changed = 0;
+        for mut p in self.list_profiles()? {
+            let before = p.bindings.len();
+            p.bindings.retain(|code, _| !crate::keymap::is_firmware_only(code));
+            if p.bindings.len() != before {
+                self.write(&p)?; // p came from disk, so builtin/game are already right
+                changed += 1;
+            }
+        }
+        Ok(changed)
+    }
+
     /// Writes a shipped built-in only when its file is missing or unreadable, so edits survive updates.
     pub fn ensure_builtins(&self) -> anyhow::Result<()> {
         for p in builtins() {

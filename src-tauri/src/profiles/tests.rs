@@ -427,6 +427,30 @@ fn upgrading_from_1_3_keeps_every_profile_and_binding() {
 }
 
 #[test]
+fn firmware_only_bindings_are_stripped_from_every_profile() {
+    let st = temp_store("strip-fn");
+    st.ensure_builtins().unwrap();
+    let fn_to_ctrl = Binding { mods: vec![], action: Action::KeyCombo { keys: vec!["ControlLeft".into()] } };
+    // Fn bound in a built-in, a user profile and a game profile
+    let mut win = st.get_profile("windows-default").unwrap();
+    win.bindings.insert("Fn".into(), fn_to_ctrl.clone());
+    st.write(&win).unwrap();
+    st.write(&Profile { bindings: BTreeMap::from([("Fn".to_string(), fn_to_ctrl.clone())]), ..profile("mine") }).unwrap();
+    let g = st.add_game(game("Portal 2", "portal2.exe"), None).unwrap();
+    st.write(&Profile { bindings: BTreeMap::from([("Fn".to_string(), fn_to_ctrl)]), ..g }).unwrap();
+
+    assert_eq!(st.strip_firmware_only().unwrap(), 3, "Fn removed from all three");
+    assert_eq!(st.strip_firmware_only().unwrap(), 0, "idempotent");
+    for id in ["windows-default", "mine", "portal-2"] {
+        assert!(!st.get_profile(id).unwrap().bindings.contains_key("Fn"), "{id} still has Fn");
+    }
+    // the game profile keeps being a game; only the Fn binding went
+    assert!(st.get_profile("portal-2").unwrap().game.is_some());
+    // other bindings are untouched
+    assert!(st.get_profile("windows-default").unwrap().bindings.contains_key("F3"));
+}
+
+#[test]
 fn untouched_old_windows_default_moves_to_the_new_one() {
     let st = temp_store("migrate");
     let old: Profile = serde_json::from_str(include_str!("../../profiles/retired/windows-default-1.0.json")).unwrap();
