@@ -26,6 +26,8 @@ export const addGame = (entry: AppEntry, base: string | null) => invoke<Profile>
 export const removeGame = (id: string) => invoke<void>("remove_game", { id });
 /** Auto-switch for one game, or for every game when `id` is null. */
 export const setGameAutoSwitch = (id: string | null, on: boolean) => invoke<void>("set_game_auto_switch", { id, on });
+/** Clears a key (e.g. Fn) from every profile and rebuilds the engine; returns profiles changed. */
+export const resetKeyEverywhere = (code: string) => invoke<number>("reset_key_everywhere", { code });
 
 /** Key Monitor: the engine reports every key to the UI while on (and while the window shows). */
 export const setMonitor = (on: boolean) => invoke<void>("set_monitor", { on });

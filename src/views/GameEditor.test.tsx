@@ -51,11 +51,13 @@ const noop = () => {};
 describe("KeyGrid", () => {
   it("draws every key, marking remapped and turned-off ones with what they do", () => {
     const html = renderToStaticMarkup(
-      <KeyGrid layout={layout} bindings={wf.bindings} legends="win" selected="Fn" onSelect={noop} note={(b) => (b.action.type === "block" ? "Off" : "Ctrl")} />,
+      <KeyGrid layout={layout} bindings={wf.bindings} legends="win" selected="KeyQ" onSelect={noop} note={(b) => (b.action.type === "block" ? "Off" : "Ctrl")} />,
     );
     expect(html.match(/class="kg-key/g)).toHaveLength(layout.keys.length);
-    expect(html).toMatch(/class="kg-key remapped selected"[^>]*data-code="Fn"/);
+    expect(html).toMatch(/class="kg-key remapped selected"[^>]*data-code="KeyQ"/);
     expect(html).toMatch(/class="kg-key off"[^>]*data-code="MetaLeft"/);
+    // Fn is firmware-only: marked, never shown as a normal remap
+    expect(html).toMatch(/class="kg-key firmware"[^>]*data-code="Fn"/);
     expect(html).toContain('<span class="kg-note">Off</span>');
     expect(html).toMatch(/class="kg-key"[^>]*data-code="KeyA"/);
   });

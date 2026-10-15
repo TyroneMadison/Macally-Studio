@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { isFirmwareOnly } from "../lib/keys";
 import type { Binding, Layout } from "../lib/types";
 
 export type KeyGridProps = {
@@ -31,7 +32,7 @@ export default function KeyGrid({ layout, bindings, legends, selected, onSelect,
         const printed = legends === "mac" ? k.mac : k.win;
         const legend = SHORT[printed] ?? (printed || (k.code === "Space" ? "" : k.code));
         const what = b && note(b);
-        const cls = ["kg-key", b ? (b.action.type === "block" ? "off" : "remapped") : "", k.code === selected ? "selected" : ""]
+        const cls = ["kg-key", isFirmwareOnly(k.code) ? "firmware" : b ? (b.action.type === "block" ? "off" : "remapped") : "", k.code === selected ? "selected" : ""]
           .filter(Boolean)
           .join(" ");
         return (

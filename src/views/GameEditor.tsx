@@ -109,6 +109,8 @@ export default function GameEditor({ store, profileId, auto, initialKey, onBack,
             profiles={store.profiles}
             lastKey={store.lastKey}
             fallback={base ? (code) => base.bindings[code] : undefined}
+            resetKeyEverywhere={store.resetKeyEverywhere}
+            onSelectKey={setSelected}
           />
           <div className="ge-remaps">
             <div className="kb-label">Remaps in this profile · {remaps.length}</div>

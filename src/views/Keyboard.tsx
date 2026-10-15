@@ -163,6 +163,8 @@ export default function Keyboard({ store }: { store: AppState }) {
             catalog={store.catalog}
             profiles={store.profiles}
             lastKey={store.lastKey}
+            resetKeyEverywhere={store.resetKeyEverywhere}
+            onSelectKey={setSelected}
           />
         ) : (
           <aside className="kb-panel" aria-label="Key inspector">

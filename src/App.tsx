@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import GameStatus from "./components/GameStatus";
 import GameToast from "./components/GameToast";
 import PermissionGate from "./components/PermissionGate";
+import PlainToast from "./components/PlainToast";
 import Rail, { type View } from "./components/Rail";
 import { switchedAuto, switchedIn, switchesAuto } from "./lib/games";
 import { useAppState, type AppState } from "./lib/state";
+import { subscribeToast } from "./lib/toast";
 import GameEditor from "./views/GameEditor";
 import Games from "./views/Games";
 import Keyboard from "./views/Keyboard";
@@ -24,6 +26,9 @@ export default function App() {
     if (store.switched?.game) setToast(store.switched);
   }, [store.switched]);
   const clearToast = useCallback(() => setToast(null), []);
+  // plain confirmation toasts (e.g. "Fn reset…") from anywhere, via the toast bus
+  const [plain, setPlain] = useState<{ text: string; at: number } | null>(null);
+  useEffect(() => subscribeToast((text) => setPlain({ text, at: Date.now() })), []);
 
   const active = store.activeProfile;
   const game = active?.game ?? null;
@@ -90,6 +95,7 @@ export default function App() {
           onDone={clearToast}
         />
       )}
+      {plain && <PlainToast key={plain.at} message={plain.text} onDone={() => setPlain(null)} />}
     </PermissionGate>
   );
 }

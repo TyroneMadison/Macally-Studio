@@ -3,7 +3,9 @@ import ActionPicker from "./ActionPicker";
 import KeyMonitor from "./KeyMonitor";
 import Keycap from "./Keycap";
 import KeyPicker from "./KeyPicker";
+import FnSection from "./FnSection";
 import { describeAction, formatChord, isMac } from "../lib/actions";
+import { isFirmwareOnly } from "../lib/keys";
 import type { AppState } from "../lib/state";
 import type { AppEntry, Binding, KeyEvent, Layout, Modifier, Profile } from "../lib/types";
 
@@ -17,6 +19,9 @@ export type InspectorProps = {
   lastKey: KeyEvent | null;
   /** What the key does when this profile leaves it alone (a game's profile runs on the Default). */
   fallback?: (code: string) => Binding | undefined;
+  resetKeyEverywhere: AppState["resetKeyEverywhere"];
+  /** Selects another key (the Fn section points at the keys next to fn). */
+  onSelectKey?: (code: string) => void;
 };
 
 /** Values are `Modifier` (the Rust variant names, unrenamed); one modifier per binding from this UI. */
@@ -33,8 +38,12 @@ export default function Inspector(props: InspectorProps) {
   return (
     <aside className="kb-panel insp" aria-label="Key inspector">
       {keyCode ? (
-        // keyed: switching key or profile drops the "Saved" note
-        <KeyEditor key={`${profile.id}/${keyCode}`} {...props} keyCode={keyCode} />
+        isFirmwareOnly(keyCode) ? (
+          <FnEditor key={`${profile.id}/${keyCode}`} {...props} keyCode={keyCode} />
+        ) : (
+          // keyed: switching key or profile drops the "Saved" note
+          <KeyEditor key={`${profile.id}/${keyCode}`} {...props} keyCode={keyCode} />
+        )
       ) : (
         <>
           <p className="muted">Click a key on the keyboard to change it.</p>
@@ -43,6 +52,26 @@ export default function Inspector(props: InspectorProps) {
       )}
       <KeyMonitor last={lastKey} />
     </aside>
+  );
+}
+
+/** The inspector for a firmware-only key (Fn): its header, then the honest Fn explainer. */
+function FnEditor({ keyCode, layout, profile, saveBinding, resetKeyEverywhere, onSelectKey }: InspectorProps & { keyCode: string }) {
+  const key = layout.keys.find((k) => k.code === keyCode);
+  return (
+    <>
+      <div className="insp-key">
+        <Keycap code={keyCode} size="lg" lit />
+        <div>
+          <div className="insp-name">{keyCode}</div>
+          <div className="muted">
+            Printed: {key?.mac || "space"} · Windows: {key?.win || "Space"}
+          </div>
+        </div>
+      </div>
+      <FnSection profile={profile} saveBinding={saveBinding} resetKeyEverywhere={resetKeyEverywhere} onSelectKey={onSelectKey} />
+      <div className="insp-spacer" />
+    </>
   );
 }
 
@@ -86,7 +115,14 @@ function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles, f
           </div>
         </div>
       </div>
-      {key?.verify && <p className="muted">OS code not yet confirmed on hardware.</p>}
+      {key?.mac === "fn" ? (
+        <p className="muted">
+          Printed fn: on Mac keyboards this is often a second fn key that the keyboard handles itself. Press it and watch
+          the Key Monitor below; if nothing shows up, Windows never sees it and a remap here can’t work.
+        </p>
+      ) : (
+        key?.verify && <p className="muted">OS code not yet confirmed on hardware.</p>
+      )}
 
       <div className="insp-card">
         <div className="kb-label">{inherited ? "From your Default profile" : "Currently bound to"}</div>

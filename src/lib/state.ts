@@ -33,6 +33,8 @@ export type AppState = {
   removeGame(id: string): Promise<void>;
   /** One game, or every game when `id` is null. */
   setGameAutoSwitch(id: string | null, on: boolean): Promise<void>;
+  /** Clears `code` from every profile (Reset Fn key); resolves to how many profiles changed. */
+  resetKeyEverywhere(code: string): Promise<number>;
 };
 
 type Data = Pick<AppState, "profiles" | "settings" | "catalog" | "status">;
@@ -135,6 +137,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       addGame: (entry, base) => queue(() => ipc.addGame(entry, base).then(async (p) => (await refresh(), p))),
       removeGame: (id) => queued(() => ipc.removeGame(id)),
       setGameAutoSwitch: (id, on) => queued(() => ipc.setGameAutoSwitch(id, on)),
+      resetKeyEverywhere: (code) => queue(() => ipc.resetKeyEverywhere(code).then(async (n) => (await refresh(), n))),
     };
   }, [data, lastKey, update, switched, liveGame, refresh, queue]);
 

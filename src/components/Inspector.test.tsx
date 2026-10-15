@@ -44,6 +44,7 @@ const render = (keyCode: string | null, profile: Profile = mine) =>
       catalog={[calc]}
       profiles={[profile]}
       lastKey={null}
+      resetKeyEverywhere={async () => 0}
     />,
   );
 
@@ -103,6 +104,28 @@ describe("Inspector", () => {
     const off = render("F3", { ...mine, bindings: { F3: { mods: [], action: { type: "block" } } } });
     expect(off).toContain('<span class="insp-title">Disabled</span>');
     expect(off).toContain(">Turn key on</button>");
+  });
+
+  it("shows the Fn section for the firmware-only Fn key, not the remap controls", () => {
+    const fnLayout = { unit: 19.05, keys: [{ code: "Fn", row: 5, x: 0, w: 1, h: 1, mac: "fn", win: "Fn" }] } as unknown as Layout;
+    const html = renderToStaticMarkup(
+      <Inspector keyCode="Fn" layout={fnLayout} profile={mine} saveBinding={async () => {}} catalog={[calc]} profiles={[mine]} lastKey={null} resetKeyEverywhere={async () => 0} />,
+    );
+    expect(html).toContain("Fn can’t be remapped");
+    expect(html).toContain("Reset Fn key");
+    expect(html).not.toContain("Remap to");
+    expect(html).not.toContain("Turn key off");
+  });
+
+  it("warns that the nav-cluster key printed fn may be a second firmware fn key", () => {
+    const navLayout = { unit: 19.05, keys: [{ code: "Insert", row: 1, x: 15.5, w: 1, h: 1, mac: "fn", win: "Insert", verify: true }] } as unknown as Layout;
+    const html = renderToStaticMarkup(
+      <Inspector keyCode="Insert" layout={navLayout} profile={mine} saveBinding={async () => {}} catalog={[calc]} profiles={[mine]} lastKey={null} resetKeyEverywhere={async () => 0} />,
+    );
+    expect(html).toContain("second fn key");
+    expect(html).toContain("Key Monitor");
+    // still remappable in case it does send Insert
+    expect(html).toContain("Remap to");
   });
 
   it("has nothing to reset or hold on an unbound key", () => {
