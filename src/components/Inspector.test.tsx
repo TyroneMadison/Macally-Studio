@@ -98,6 +98,13 @@ describe("Inspector", () => {
     expect(html).not.toMatch(/<(button|select)[^>]* disabled=""/);
   });
 
+  it("turns a key off, and back on", () => {
+    expect(render("F14")).toContain(">Turn key off</button>");
+    const off = render("F3", { ...mine, bindings: { F3: { mods: [], action: { type: "block" } } } });
+    expect(off).toContain('<span class="insp-title">Disabled</span>');
+    expect(off).toContain(">Turn key on</button>");
+  });
+
   it("has nothing to reset or hold on an unbound key", () => {
     const html = render("F3", { ...mine, bindings: {} });
     expect(html).toContain("Not remapped");

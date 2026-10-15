@@ -15,6 +15,8 @@ export type InspectorProps = {
   catalog: AppEntry[];
   profiles: Profile[];
   lastKey: KeyEvent | null;
+  /** What the key does when this profile leaves it alone (a game's profile runs on the Default). */
+  fallback?: (code: string) => Binding | undefined;
 };
 
 /** Values are `Modifier` (the Rust variant names, unrenamed); one modifier per binding from this UI. */
@@ -45,14 +47,16 @@ export default function Inspector(props: InspectorProps) {
 }
 
 /** Every change saves at once through `saveBinding`. */
-function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles }: InspectorProps & { keyCode: string }) {
+function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles, fallback }: InspectorProps & { keyCode: string }) {
   const binding: Binding | undefined = profile.bindings[keyCode];
+  const inherited = binding ? undefined : fallback?.(keyCode);
   const mods = binding?.mods ?? [];
+  const off = binding?.action.type === "block";
   const [picking, setPicking] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const key = layout.keys.find((k) => k.code === keyCode);
-  const summary = describeAction(binding?.action, catalog, profiles);
+  const summary = describeAction((binding ?? inherited)?.action, catalog, profiles);
   const sends = binding?.action.type === "key_combo" ? binding.action.keys : [];
 
   /** Built from the latest saved binding, not this render's, so quick edits cannot undo each other. */
@@ -85,7 +89,7 @@ function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles }:
       {key?.verify && <p className="muted">OS code not yet confirmed on hardware.</p>}
 
       <div className="insp-card">
-        <div className="kb-label">Currently bound to</div>
+        <div className="kb-label">{inherited ? "From your Default profile" : "Currently bound to"}</div>
         <div className="insp-bound">
           <span className="insp-type">{summary.type}</span>
           <span className="insp-title">{summary.title}</span>
@@ -133,6 +137,13 @@ function KeyEditor({ keyCode, layout, profile, saveBinding, catalog, profiles }:
           onClick={() => setPicking(true)}
         >
           More actions…
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => commit((old) => (off ? null : { mods: old?.mods ?? [], action: { type: "block" } }))}
+        >
+          {off ? "Turn key on" : "Turn key off"}
         </button>
         <button type="button" className="btn" disabled={!binding} onClick={() => commit(() => null)}>
           Reset key

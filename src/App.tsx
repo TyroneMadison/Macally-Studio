@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import GameStatus from "./components/GameStatus";
 import GameToast from "./components/GameToast";
 import PermissionGate from "./components/PermissionGate";
 import Rail, { type View } from "./components/Rail";
-import { switchesAuto } from "./lib/games";
+import { switchedAuto, switchedIn, switchesAuto } from "./lib/games";
 import { useAppState, type AppState } from "./lib/state";
+import GameEditor from "./views/GameEditor";
 import Games from "./views/Games";
 import Keyboard from "./views/Keyboard";
 import Profiles from "./views/Profiles";
@@ -27,33 +28,58 @@ export default function App() {
   const active = store.activeProfile;
   const game = active?.game ?? null;
   const detected = store.switched?.game && store.switched.id === active?.id ? store.switched.at : undefined;
-  // The keyboard view edits the active profile, so a profile opened from Game profiles becomes active.
-  const edit = (id: string) => void store.setActiveProfile(id).then(() => setView("keyboard"));
+
+  // A game's profile switching in, detected or picked by hand, opens its full-screen editor.
+  const [editor, setEditor] = useState<{ id: string; auto: boolean; key?: string; back: View } | null>(null);
+  const seen = useRef(active?.id);
+  useEffect(() => {
+    const p = switchedIn(seen.current, active?.id, store.profiles);
+    seen.current = active?.id;
+    if (p) setEditor({ id: p.id, auto: switchedAuto(store.switched, p.id, Date.now()), back: view });
+  }, [active?.id]);
+  const editing = editor && store.profiles.some((p) => p.id === editor.id) ? editor : null;
+  const close = (to: View) => {
+    setView(to);
+    setEditor(null);
+  };
 
   return (
     <PermissionGate store={store}>
-      <div className="app">
-        <Rail
-          view={view}
-          onNav={setView}
-          corner={
-            <GameStatus
-              game={game}
-              watching={store.settings.gameAutoSwitch}
-              live={!!active && store.liveGame === active.id}
-              auto={!!game && switchesAuto(game, store.settings)}
-              pop={detected}
-              onOpen={() => setView("games")}
-            />
-          }
+      {editing ? (
+        <GameEditor
+          key={`${editing.id}/${editing.key ?? ""}`}
+          store={store}
+          profileId={editing.id}
+          auto={editing.auto}
+          initialKey={editing.key}
+          onBack={() => close(editing.back)}
+          onProfiles={() => close("games")}
+          onExit={() => close("keyboard")}
         />
-        <main className="view">
-          {view === "keyboard" && <Keyboard store={store} />}
-          {view === "profiles" && <Profiles store={store} onNav={setView} />}
-          {view === "settings" && <Settings store={store} />}
-          {view === "games" && <Games store={store} onEdit={edit} />}
-        </main>
-      </div>
+      ) : (
+        <div className="app">
+          <Rail
+            view={view}
+            onNav={setView}
+            corner={
+              <GameStatus
+                game={game}
+                watching={store.settings.gameAutoSwitch}
+                live={!!active && store.liveGame === active.id}
+                auto={!!game && switchesAuto(game, store.settings)}
+                pop={detected}
+                onOpen={() => setView("games")}
+              />
+            }
+          />
+          <main className="view">
+            {view === "keyboard" && <Keyboard store={store} />}
+            {view === "profiles" && <Profiles store={store} onNav={setView} />}
+            {view === "settings" && <Settings store={store} />}
+            {view === "games" && <Games store={store} onEdit={(id, key) => setEditor({ id, auto: false, key, back: "games" })} />}
+          </main>
+        </div>
+      )}
       {toast?.game && (
         <GameToast
           key={toast.at}
