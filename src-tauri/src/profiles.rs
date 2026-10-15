@@ -55,6 +55,41 @@ pub struct Profile {
     /// Key code (W3C `KeyboardEvent.code`) -> binding.
     #[serde(default)]
     pub bindings: BTreeMap<String, Binding>,
+    /// Set on a game's own profile; only `add_game` and `set_game_auto_switch` change it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub game: Option<Game>,
+}
+
+/// The game a game profile belongs to: the profile is active while the game is in front.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Game {
+    /// The game's own name, for the switch notice.
+    pub name: String,
+    /// Exe file name on Windows ("portal2.exe"), bundle id on macOS. Empty when `folder` names the game.
+    #[serde(default)]
+    pub exe: String,
+    /// Every program inside this folder counts as the game (a Steam game's install folder).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folder: Option<String>,
+    /// Cached icon file in `<data_dir>/icons`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    /// Switch to this profile while the game is in front; `Settings::game_auto_switch` stops every game.
+    #[serde(default = "yes")]
+    pub auto_switch: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+impl Game {
+    /// The same game: the same exe or the same folder, in any case.
+    fn same(&self, other: &Game) -> bool {
+        let eq = |a: &str, b: &str| !a.is_empty() && a.to_lowercase() == b.to_lowercase();
+        eq(&self.exe, &other.exe) || eq(self.folder.as_deref().unwrap_or(""), other.folder.as_deref().unwrap_or(""))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -98,6 +133,8 @@ pub struct Settings {
     pub run_as_admin: bool,
     pub windows_legends: bool,
     pub auto_check_updates: bool,
+    /// Games switch to their own profiles while in front.
+    pub game_auto_switch: bool,
 }
 
 /// The built-in profile for the OS we run on.
@@ -117,6 +154,7 @@ impl Default for Settings {
             run_as_admin: false,
             windows_legends: true,
             auto_check_updates: true,
+            game_auto_switch: true,
         }
     }
 }
@@ -210,9 +248,37 @@ impl Store {
         read_profile(&self.path(id)?)
     }
 
-    /// `builtin` follows the id: a save can neither lock a profile nor lift a built-in's delete guard.
+    /// `builtin` follows the id and `game` stays as it is on disk: a save can neither lock a profile,
+    /// lift a built-in's delete guard nor add or drop a game.
     pub fn save_profile(&self, p: &Profile) -> anyhow::Result<()> {
-        self.write(&Profile { builtin: builtins().any(|b| b.id == p.id), ..p.clone() })
+        let game = self.get_profile(&p.id).ok().and_then(|old| old.game);
+        self.write(&Profile { builtin: builtins().any(|b| b.id == p.id), game, ..p.clone() })
+    }
+
+    /// A new profile for `game` with a copy of `base`'s bindings, or the profile it already has.
+    pub fn add_game(&self, game: Game, base: &str) -> anyhow::Result<Profile> {
+        if let Some(p) = self.list_profiles()?.into_iter().find(|p| p.game.as_ref().is_some_and(|g| g.same(&game))) {
+            return Ok(p);
+        }
+        let p = Profile {
+            schema: SCHEMA,
+            id: self.free_id(&slug(&game.name)),
+            name: game.name.clone(),
+            builtin: false,
+            hotkey: None,
+            auto_apps: Vec::new(),
+            bindings: self.get_profile(base)?.bindings,
+            game: Some(game),
+        };
+        self.write(&p)?;
+        Ok(p)
+    }
+
+    pub fn set_game_auto_switch(&self, id: &str, on: bool) -> anyhow::Result<Profile> {
+        let mut p = self.get_profile(id)?;
+        p.game.as_mut().with_context(|| format!("{id:?} is not a game profile"))?.auto_switch = on;
+        self.write(&p)?;
+        Ok(p)
     }
 
     pub fn delete_profile(&self, id: &str) -> anyhow::Result<()> {
@@ -227,6 +293,7 @@ impl Store {
         p.name = format!("{} copy", p.name);
         p.builtin = false;
         p.hotkey = None; // two profiles cannot share a hotkey
+        p.game = None; // or a game
         self.write(&p)?;
         Ok(p)
     }

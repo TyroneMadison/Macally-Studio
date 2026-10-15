@@ -221,6 +221,7 @@ mod tests {
             hotkey: None,
             auto_apps: apps.iter().map(|s| s.to_string()).collect(),
             bindings: Default::default(),
+            game: None,
         }
     }
 

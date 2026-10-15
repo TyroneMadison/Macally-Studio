@@ -15,6 +15,7 @@ fn profile(id: &str) -> Profile {
         hotkey: Some("Ctrl+Alt+2".into()),
         auto_apps: vec!["Photoshop.exe".into()],
         bindings: BTreeMap::from([("F13".to_string(), binding)]),
+        game: None,
     }
 }
 
@@ -25,6 +26,38 @@ fn profile_json_is_camel_case() {
     assert_eq!(v["hotkey"], "Ctrl+Alt+2");
     assert_eq!(v["bindings"]["F13"]["mods"], json!(["Shift"]));
     assert_eq!(v["bindings"]["F13"]["action"]["type"], "launch_app");
+}
+
+/// `profile("photo")` exactly as Version 1.3 wrote it to disk.
+const PHOTO_1_3: &str = r#"{
+  "schema": 1,
+  "id": "photo",
+  "name": "Photo editing",
+  "builtin": false,
+  "hotkey": "Ctrl+Alt+2",
+  "autoApps": [
+    "Photoshop.exe"
+  ],
+  "bindings": {
+    "F13": {
+      "mods": [
+        "Shift"
+      ],
+      "action": {
+        "type": "launch_app",
+        "app": {
+          "kind": "bundle",
+          "id": "com.apple.calculator"
+        }
+      }
+    }
+  }
+}"#;
+
+#[test]
+fn profile_files_keep_the_1_3_format() {
+    assert_eq!(serde_json::to_string_pretty(&profile("photo")).unwrap(), PHOTO_1_3);
+    assert_eq!(serde_json::from_str::<Profile>(PHOTO_1_3).unwrap(), profile("photo"));
 }
 
 #[test]
@@ -255,6 +288,140 @@ fn community_example_profile_loads() {
             }
         }
     }
+}
+
+fn game(name: &str, exe: &str) -> Game {
+    Game { name: name.into(), exe: exe.into(), folder: None, icon: None, auto_switch: true }
+}
+
+#[test]
+fn game_json_is_camel_case_and_switches_by_default() {
+    assert!(serde_json::to_value(profile("photo")).unwrap().get("game").is_none());
+    let p = Profile { game: Some(game("Portal 2", "portal2.exe")), ..profile("portal-2") };
+    let v = serde_json::to_value(&p).unwrap();
+    assert_eq!(v["game"], json!({ "name": "Portal 2", "exe": "portal2.exe", "autoSwitch": true }));
+    let g: Game = serde_json::from_value(json!({ "name": "Portal 2", "folder": r"G:\SteamLibrary\steamapps\common\Portal 2" })).unwrap();
+    assert!(g.auto_switch && g.exe.is_empty());
+}
+
+#[test]
+fn games_switch_unless_settings_say_otherwise() {
+    assert!(Settings::default().game_auto_switch);
+    assert_eq!(serde_json::to_value(Settings::default()).unwrap()["gameAutoSwitch"], true);
+    let s: Settings = serde_json::from_str(r#"{ "gameAutoSwitch": false }"#).unwrap();
+    assert!(!s.game_auto_switch);
+}
+
+#[test]
+fn a_game_gets_its_own_profile_with_a_copy_of_the_base_bindings() {
+    let st = temp_store("game-add");
+    st.ensure_builtins().unwrap();
+    let base = st.get_profile("windows-default").unwrap();
+    let p = st.add_game(game("Portal 2", "portal2.exe"), "windows-default").unwrap();
+    assert_eq!((p.id.as_str(), p.name.as_str()), ("portal-2", "Portal 2"));
+    assert!(!p.builtin && p.hotkey.is_none() && p.auto_apps.is_empty());
+    assert_eq!(p.bindings, base.bindings);
+    assert_eq!(p.game, Some(game("Portal 2", "portal2.exe")));
+    assert_eq!(st.get_profile("portal-2").unwrap(), p);
+    // the same game again, by exe in any case: the profile it already has
+    assert_eq!(st.add_game(game("Portal 2 again", "PORTAL2.EXE"), "macos-default").unwrap(), p);
+    // a different game with the same name gets its own id
+    let beta = st.add_game(game("Portal 2", "portal2_beta.exe"), "macos-default").unwrap();
+    assert_eq!(beta.id, "portal-2-2");
+    assert!(beta.bindings.is_empty());
+    assert!(st.add_game(game("X", "x.exe"), "nope").is_err());
+    assert_eq!(st.list_profiles().unwrap().len(), 4);
+}
+
+#[test]
+fn a_folder_game_is_the_same_game_by_folder() {
+    let st = temp_store("game-folder");
+    st.ensure_builtins().unwrap();
+    let folder = |dir: &str| Game { folder: Some(dir.into()), ..game("Portal 2", "") };
+    let p = st.add_game(folder(r"G:\Steam\steamapps\common\Portal 2"), "windows-default").unwrap();
+    assert_eq!(st.add_game(folder(r"g:\steam\steamapps\common\portal 2"), "windows-default").unwrap(), p);
+    // two folder games never count as the same game through their empty exe
+    assert_ne!(st.add_game(folder(r"G:\Steam\steamapps\common\Portal"), "windows-default").unwrap().id, p.id);
+}
+
+#[test]
+fn only_the_game_commands_change_a_profiles_game() {
+    let st = temp_store("game-keep");
+    st.ensure_builtins().unwrap();
+    let p = st.add_game(game("Portal 2", "portal2.exe"), "windows-default").unwrap();
+    // the UI saves profiles without knowing about games
+    st.save_profile(&Profile { game: None, name: "Portal".into(), ..p.clone() }).unwrap();
+    let saved = st.get_profile("portal-2").unwrap();
+    assert_eq!((saved.name.as_str(), &saved.game), ("Portal", &p.game));
+    // a new profile cannot claim a game by being saved
+    st.save_profile(&Profile { game: Some(game("Y", "y.exe")), ..profile("plain") }).unwrap();
+    assert_eq!(st.get_profile("plain").unwrap().game, None);
+    // a copy is a plain profile: two profiles never share a game
+    assert_eq!(st.duplicate_profile("portal-2").unwrap().game, None);
+}
+
+#[test]
+fn auto_switch_is_stored_per_game() {
+    let st = temp_store("game-toggle");
+    st.ensure_builtins().unwrap();
+    st.add_game(game("Portal 2", "portal2.exe"), "windows-default").unwrap();
+    let off = st.set_game_auto_switch("portal-2", false).unwrap();
+    assert!(!off.game.unwrap().auto_switch);
+    assert!(!st.get_profile("portal-2").unwrap().game.unwrap().auto_switch);
+    assert!(st.set_game_auto_switch("portal-2", true).unwrap().game.unwrap().auto_switch);
+    assert!(st.set_game_auto_switch("windows-default", false).is_err(), "not a game");
+}
+
+/// Every profile file, byte for byte.
+fn snapshot(st: &Store) -> BTreeMap<String, Vec<u8>> {
+    let mut files = BTreeMap::new();
+    for e in fs::read_dir(st.data_dir.join("profiles")).unwrap().flatten() {
+        files.insert(format!("profiles/{}", e.file_name().to_string_lossy()), fs::read(e.path()).unwrap());
+    }
+    files
+}
+
+/// A data folder exactly as Version 1.3 left it: a Windows Default the user edited, the macOS
+/// Default, a profile of their own with an app rule and a hotkey, and settings without games.
+#[test]
+fn upgrading_from_1_3_keeps_every_profile_and_binding() {
+    let st = temp_store("upgrade-1-3");
+    let calculator = Action::LaunchApp { app: AppRef::Aumid { id: "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App".into() } };
+    let mut win = builtins().find(|p| p.id == "windows-default").unwrap();
+    win.bindings.insert("F13".into(), Binding { mods: vec![], action: calculator });
+    win.bindings.insert("MetaLeft".into(), Binding { mods: vec![], action: Action::KeyCombo { keys: vec!["Meta".into()] } });
+    let mac = builtins().find(|p| p.id == "macos-default").unwrap();
+    for p in [&win, &mac] {
+        st.write(p).unwrap();
+    }
+    fs::write(st.data_dir.join("profiles").join("photo.json"), PHOTO_1_3).unwrap();
+    let settings_1_3 = r#"{ "schema": 1, "activeProfile": "photo", "switchMode": "hotkey",
+        "hotkeys": { "pause": "Ctrl+Alt+P", "nextProfile": "Ctrl+Alt+N", "prevProfile": "Ctrl+Alt+B", "show": "Ctrl+Alt+M" },
+        "startAtLogin": false, "closeToTray": true, "runAsAdmin": false, "windowsLegends": false, "autoCheckUpdates": true }"#;
+    fs::write(st.data_dir.join("settings.json"), settings_1_3).unwrap();
+    let before = snapshot(&st);
+
+    // first start of the new version
+    st.ensure_builtins().unwrap();
+    let profiles = st.list_profiles().unwrap();
+    let settings = st.load_settings();
+
+    assert_eq!(snapshot(&st), before, "no profile file is rewritten");
+    assert_eq!(profiles, vec![mac, win.clone(), profile("photo")]);
+    assert_eq!(profiles[1].bindings.len(), 12);
+    assert!(profiles.iter().all(|p| p.game.is_none()));
+    assert_eq!((settings.active_profile.as_str(), settings.switch_mode), ("photo", SwitchMode::Hotkey));
+    assert_eq!(settings.hotkeys.next_profile, "Ctrl+Alt+N");
+    assert!(!settings.start_at_login && !settings.windows_legends && settings.close_to_tray);
+    assert!(settings.game_auto_switch, "games start out switching");
+
+    // adding and toggling a game leaves every other profile alone
+    st.add_game(game("Portal 2", "portal2.exe"), "windows-default").unwrap();
+    st.set_game_auto_switch("portal-2", false).unwrap();
+    let mut after = snapshot(&st);
+    assert!(after.remove("profiles/portal-2.json").is_some());
+    assert_eq!(after, before);
+    assert_eq!(st.get_profile("windows-default").unwrap(), win);
 }
 
 #[test]

@@ -92,6 +92,7 @@ mod win {
             hotkey: None,
             auto_apps: vec![],
             bindings,
+            game: None,
         });
         engine::windows::install(engine.clone());
         let started = Instant::now();

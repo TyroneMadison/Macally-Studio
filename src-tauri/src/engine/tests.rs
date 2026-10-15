@@ -37,7 +37,7 @@ fn profile(bindings: &[(&str, &[Modifier], Action)]) -> Profile {
     for (code, mods, action) in bindings {
         map.insert(code.to_string(), Binding { mods: mods.to_vec(), action: action.clone() });
     }
-    Profile { schema: 1, id: "t".into(), name: "T".into(), builtin: false, hotkey: None, auto_apps: vec![], bindings: map }
+    Profile { schema: 1, id: "t".into(), name: "T".into(), builtin: false, hotkey: None, auto_apps: vec![], bindings: map, game: None }
 }
 
 fn keys(k: &[&str]) -> Vec<String> {
